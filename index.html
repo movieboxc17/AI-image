@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>High-Resolution Image Stacker</title>
+    <!-- Add heic2any library for HEIC support -->
+    <script src="https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -150,6 +152,20 @@
             padding: 10px;
             border-radius: 4px;
             margin-top: 20px;
+            height: 100px;
+            overflow: auto;
+        }
+        /* File support info */
+        .file-support {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        /* Processing indicator */
+        .processing {
+            margin: 10px 0;
+            color: #2196F3;
+            font-weight: bold;
             display: none;
         }
     </style>
@@ -160,15 +176,18 @@
         
         <div class="info-box">
             <p><strong>⚡ Supports up to 1500 megapixels</strong> - This tool can handle extremely large images by using advanced tiling techniques.</p>
+            <p><strong>📱 iOS/Apple Support:</strong> HEIC files from iPhones and other Apple devices are now supported!</p>
         </div>
         
         <div class="drop-area" id="dropArea">
             <p>Drag & drop images here or</p>
-            <input type="file" id="fileInput" accept="image/*" multiple>
+            <input type="file" id="fileInput" accept="image/*,.heic,.HEIC" multiple>
             <button id="selectFilesBtn">Select Images</button>
+            <p class="file-support">Supported formats: JPG, PNG, GIF, WEBP, TIFF, BMP, HEIC and more</p>
             <p><small>You can upload up to 50 images</small></p>
         </div>
         
+        <div class="processing" id="processingIndicator">Converting HEIC file... Please wait.</div>
         <div class="debug-info" id="debugInfo"></div>
 
         <div class="preview-container" id="previewContainer"></div>
@@ -281,12 +300,23 @@
         const outputDimensions = document.getElementById('outputDimensions');
         const outputMegapixels = document.getElementById('outputMegapixels');
         const debugInfo = document.getElementById('debugInfo');
+        const processingIndicator = document.getElementById('processingIndicator');
         
         // Debug function
         function debug(message) {
             console.log(message);
             debugInfo.style.display = 'block';
             debugInfo.textContent += message + '\n';
+            // Auto-scroll to bottom
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+        
+        // Check if heic2any library is available
+        const heicSupported = typeof heic2any !== 'undefined';
+        if (!heicSupported) {
+            debug("Warning: HEIC support library not loaded. HEIC files may not work correctly.");
+        } else {
+            debug("HEIC support enabled.");
         }
         
         // Update megapixel count on resolution change
@@ -334,8 +364,11 @@
         }
         
         // Make the entire drop area clickable to open file picker
-        dropArea.addEventListener('click', function() {
-            fileInput.click();
+        dropArea.addEventListener('click', function(e) {
+            // Prevent click if the target is the select button (it has its own handler)
+            if (e.target !== selectFilesBtn) {
+                fileInput.click();
+            }
         });
         
         // Also make the select button work correctly
@@ -372,45 +405,97 @@
             }
             
             Array.from(files).forEach(file => {
-                if (file.type.match('image.*')) {
-                    const reader = new FileReader();
-                    
-                    reader.onload = function(e) {
-                        const img = new Image();
-                        
-                        img.onload = function() {
-                            debug(`Loaded image: ${file.name} (${img.width}x${img.height})`);
-                            
-                            uploadedImages.push({
-                                element: img,
-                                file: file,
-                                width: img.width,
-                                height: img.height
-                            });
-                            
-                            createPreviewElement(img, uploadedImages.length - 1);
-                            updateStackButton();
-                        };
-                        
-                        img.onerror = function() {
-                            debug(`Error loading image: ${file.name}`);
-                            alert(`Error loading image: ${file.name}`);
-                        };
-                        
-                        img.src = e.target.result;
-                    };
-                    
-                    reader.onerror = function() {
-                        debug(`Error reading file: ${file.name}`);
-                        alert(`Error reading file: ${file.name}`);
-                    };
-                    
-                    reader.readAsDataURL(file);
-                } else {
-                    debug(`Skipped non-image file: ${file.name}`);
-                    alert(`"${file.name}" is not a valid image file.`);
-                }
+                processFile(file);
             });
+        }
+        
+        // Process a single file, handling HEIC conversion if needed
+        function processFile(file) {
+            // Check if file is HEIC format
+            const isHeic = file.name.toLowerCase().endsWith('.heic') || 
+                         file.type === 'image/heic' || 
+                         file.type === 'image/heif';
+            
+            if (isHeic) {
+                debug(`Processing HEIC file: ${file.name}`);
+                
+                // Show processing indicator
+                processingIndicator.style.display = 'block';
+                
+                if (typeof heic2any === 'undefined') {
+                    alert(`HEIC support requires the heic2any library which appears to be missing. File: ${file.name}`);
+                    processingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                // Convert HEIC to JPEG using heic2any library
+                heic2any({
+                    blob: file,
+                    toType: 'image/jpeg',
+                    quality: 0.9
+                })
+                .then(convertedBlob => {
+                    debug(`HEIC conversion successful: ${file.name}`);
+                    
+                    // Create a new file object with the converted blob
+                    const convertedFile = new File(
+                        [convertedBlob], 
+                        file.name.replace('.heic', '.jpg').replace('.HEIC', '.jpg'), 
+                        { type: 'image/jpeg' }
+                    );
+                    
+                    // Process the converted file
+                    processImageFile(convertedFile);
+                    processingIndicator.style.display = 'none';
+                })
+                .catch(err => {
+                    debug(`HEIC conversion error for ${file.name}: ${err.message}`);
+                    alert(`Failed to convert HEIC file: ${file.name}. Error: ${err.message}`);
+                    processingIndicator.style.display = 'none';
+                });
+            } else if (file.type.match('image.*')) {
+                processImageFile(file);
+            } else {
+                debug(`Skipped non-image file: ${file.name} (${file.type})`);
+                alert(`"${file.name}" is not a valid image file.`);
+            }
+        }
+        
+        // Process a regular image file or converted HEIC file
+        function processImageFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                
+                img.onload = function() {
+                    debug(`Loaded image: ${file.name} (${img.width}x${img.height})`);
+                    
+                    uploadedImages.push({
+                        element: img,
+                        file: file,
+                        width: img.width,
+                        height: img.height
+                    });
+                    
+                    createPreviewElement(img, uploadedImages.length - 1);
+                    updateStackButton();
+                };
+                
+                img.onerror = function() {
+                    debug(`Error loading image: ${file.name}`);
+                    alert(`Error loading image: ${file.name}`);
+                };
+                
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = function() {
+                debug(`Error reading file: ${file.name}`);
+                alert(`Error reading file: ${file.name}`);
+            };
+            
+            reader.readAsDataURL(file);
         }
         
         // Create preview element for each image
@@ -798,8 +883,8 @@
                         progressBar.style.width = `${progress}%`;
                         progressText.textContent = `${progress}% (Tile ${tilesProcessed}/${totalTiles})`;
                         
-                                                // Process next tile or finish
-                                                if (tilesProcessed === totalTiles) {
+                        // Process next tile or finish
+                        if (tilesProcessed === totalTiles) {
                             // All tiles processed, create preview
                             createPreviewFromTiles();
                         } else {
@@ -1076,8 +1161,8 @@
             return (bytes / 1073741824).toFixed(1) + ' GB';
         }
         
-        // Initialize the app
-        function init() {
+                // Initialize the app
+                function init() {
             // Set up event handlers for controls
             opacitySlider.addEventListener('input', function() {
                 opacityValue.textContent = `${this.value}%`;
@@ -1093,12 +1178,170 @@
             fileInput.style.margin = '10px 0';
             fileInput.style.padding = '10px';
             
+            // Set accepted file types to include HEIC explicitly
+            fileInput.setAttribute('accept', 'image/*,.heic,.HEIC');
+            
+            // Check for the heic2any library
+            if (typeof heic2any === 'undefined') {
+                debug('WARNING: heic2any library not detected. HEIC conversion may not work.');
+                
+                // Add a script tag to load the library if missing
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js';
+                script.onload = function() {
+                    debug('heic2any library loaded successfully.');
+                };
+                script.onerror = function() {
+                    debug('Failed to load heic2any library. HEIC files will not be supported.');
+                };
+                document.head.appendChild(script);
+            }
+            
             // Any other initialization
-            debug('Image Stacker initialized. Supported resolution: up to 1500 megapixels');
+            debug('Image Stacker initialized. HEIC support enabled. Supported resolution: up to 1500 megapixels');
+        }
+        
+        // Detect HEIC support in the browser
+        async function checkHeicSupport() {
+            if (typeof heic2any === 'undefined') {
+                return false;
+            }
+            
+            try {
+                // Create a simple 1x1 HEIC test image (dummy test)
+                const response = await fetch('data:image/heic;base64,AAAA');
+                if (!response.ok) return false;
+                
+                const blob = await response.blob();
+                await heic2any({ blob });
+                return true;
+            } catch (e) {
+                console.error('HEIC support check failed:', e);
+                return false;
+            }
+        }
+        
+        // Clear all images button
+        function addClearAllButton() {
+            const clearAllBtn = document.createElement('button');
+            clearAllBtn.textContent = 'Clear All Images';
+            clearAllBtn.style.backgroundColor = '#f44336';
+            clearAllBtn.style.marginTop = '10px';
+            
+            clearAllBtn.addEventListener('click', function() {
+                if (uploadedImages.length === 0) return;
+                
+                if (confirm('Are you sure you want to remove all images?')) {
+                    uploadedImages = [];
+                    while (previewContainer.firstChild) {
+                        previewContainer.removeChild(previewContainer.firstChild);
+                    }
+                    updateStackButton();
+                    debug('All images cleared');
+                }
+            });
+            
+            // Add the button after the preview container
+            previewContainer.parentNode.insertBefore(clearAllBtn, previewContainer.nextSibling);
+        }
+        
+        // Add a function to validate HEIC files before processing
+        function isHeicFile(file) {
+            return file.name.toLowerCase().endsWith('.heic') || 
+                   file.type === 'image/heic' || 
+                   file.type === 'image/heif';
+        }
+        
+        // Better error handling for the whole application
+        window.addEventListener('error', function(e) {
+            debug(`Error: ${e.message} at ${e.filename}:${e.lineno}`);
+            
+            // For HEIC specific errors
+            if (e.message.includes('HEIC') || e.message.includes('heic')) {
+                alert('There was an error processing HEIC images. Please try converting them to JPEG or PNG first.');
+            }
+        });
+        
+        // Better reporting for rejected promises
+        window.addEventListener('unhandledrejection', function(e) {
+            debug(`Promise rejection: ${e.reason}`);
+            
+            // For HEIC specific errors
+            if (e.reason && (e.reason.toString().includes('HEIC') || e.reason.toString().includes('heic'))) {
+                alert('There was an error processing HEIC images. Please try converting them to JPEG or PNG first.');
+            }
+        });
+        
+        // Function to check if a file is a valid image before processing
+        async function isValidImageFile(file) {
+            // First check the file extension and type
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif'];
+            const fileName = file.name.toLowerCase();
+            
+            // Check if it has a valid extension
+            if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+                debug(`Invalid file extension: ${fileName}`);
+                return false;
+            }
+            
+            // HEIC files need special handling
+            if (isHeicFile(file)) {
+                // Already checked before
+                return true;
+            }
+            
+            // For other image types, try to create an object URL and load it
+            return new Promise((resolve) => {
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
+                
+                img.onload = function() {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve(true);
+                };
+                
+                img.onerror = function() {
+                    URL.revokeObjectURL(objectUrl);
+                    debug(`Failed to load image: ${file.name}`);
+                    resolve(false);
+                };
+                
+                img.src = objectUrl;
+            });
+        }
+        
+        // Add support info to the UI
+        function updateSupportInfo() {
+            const supportInfoDiv = document.createElement('div');
+            supportInfoDiv.className = 'info-box';
+            supportInfoDiv.innerHTML = `
+                <p><strong>Supported file types:</strong></p>
+                <ul>
+                    <li>JPEG, PNG, GIF, WebP, BMP - Standard support</li>
+                    <li>HEIC/HEIF - Supported with conversion (iOS/Apple Photos)</li>
+                </ul>
+                <p><small>Note: HEIC files will be automatically converted to JPEG for processing</small></p>
+            `;
+            
+            // Insert after the drop area
+            dropArea.parentNode.insertBefore(supportInfoDiv, dropArea.nextSibling);
         }
         
         // Run initialization when page loads
-        window.addEventListener('DOMContentLoaded', init);
+        window.addEventListener('DOMContentLoaded', function() {
+            init();
+            addClearAllButton();
+            updateSupportInfo();
+            
+            // Check HEIC support
+            checkHeicSupport().then(supported => {
+                if (supported) {
+                    debug('HEIC support confirmed');
+                } else {
+                    debug('HEIC support not available. Will try to use the conversion library.');
+                }
+            });
+        });
     </script>
 </body>
 </html>
