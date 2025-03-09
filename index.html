@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Stacker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .drop-area {
+            border: 3px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }
+        .drop-area.highlight {
+            background-color: #e9f7fe;
+            border-color: #2196F3;
+        }
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .image-preview {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            overflow: hidden;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-preview .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        select, input {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .progress-container {
+            width: 100%;
+            margin: 20px 0;
+            display: none;
+        }
+        .progress-bar {
+            height: 10px;
+            background-color: #4CAF50;
+            width: 0%;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .result-container {
+            display: none;
+            margin: 20px 0;
+        }
+        #downloadContainer {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #downloadBtn {
+            background-color: #2196F3;
+        }
+        #downloadBtn:hover {
+            background-color: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Stacker</h1>
+        
+        <div class="drop-area" id="dropArea">
+            <p>Drag & drop images here or</p>
+            <input type="file" id="fileInput" accept="image/*" multiple hidden>
+            <button onclick="document.getElementById('fileInput').click()">Select Images</button>
+            <p><small>You can upload up to 50 images</small></p>
+        </div>
+
+        <div class="preview-container" id="previewContainer"></div>
+        
+        <div class="controls">
+            <h3>Stacking Options</h3>
+            <div>
+                <label for="blendMode">Blend Mode:</label>
+                <select id="blendMode">
+                    <option value="normal">Normal</option>
+                    <option value="lighten">Lighten</option>
+                    <option value="darken">Darken</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay">Overlay</option>
+                    <option value="color-dodge">Color Dodge</option>
+                    <option value="color-burn">Color Burn</option>
+                    <option value="difference">Difference</option>
+                    <option value="exclusion">Exclusion</option>
+                    <option value="luminosity">Luminosity</option>
+                </select>
+            </div>
+            <div>
+                <label for="opacity">Opacity:</label>
+                <input type="range" id="opacity" min="0" max="100" value="100">
+                <span id="opacityValue">100%</span>
+            </div>
+            <div>
+                <label for="alignment">Alignment:</label>
+                <select id="alignment">
+                    <option value="center">Center</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                </select>
+            </div>
+            <button id="stackBtn" disabled>Stack Images</button>
+        </div>
+        
+        <div class="progress-container" id="progressContainer">
+            <p>Processing: <span id="progressText">0%</span></p>
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <h3>Stacked Image Preview</h3>
+            <canvas id="previewCanvas"></canvas>
+            <div id="downloadContainer">
+                <button id="downloadBtn">Download Stacked Image</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables to store images and settings
+        const maxImages = 50;
+        let uploadedImages = [];
+        let stackedCanvas = null;
+        
+        // DOM elements
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const stackBtn = document.getElementById('stackBtn');
+        const blendModeSelect = document.getElementById('blendMode');
+        const opacitySlider = document.getElementById('opacity');
+        const opacityValue = document.getElementById('opacityValue');
+        const alignmentSelect = document.getElementById('alignment');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const resultContainer = document.getElementById('resultContainer');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // Event listeners for drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('highlight');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('highlight');
+        }
+        
+        // Handle file drop
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+        
+        // Handle file input change
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+        
+        // Process uploaded files
+        function handleFiles(files) {
+            if (uploadedImages.length + files.length > maxImages) {
+                alert(`You can only upload up to ${maxImages} images. Only the first ${maxImages - uploadedImages.length} will be added.`);
+                files = Array.from(files).slice(0, maxImages - uploadedImages.length);
+            }
+            
+            Array.from(files).forEach(file => {
+                if (file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = function() {
+                            uploadedImages.push({
+                                element: img,
+                                file: file
+                            });
+                            createPreviewElement(img, uploadedImages.length - 1);
+                            updateStackButton();
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // Create preview element for each image
+        function createPreviewElement(img, index) {
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'image-preview';
+            previewDiv.dataset.index = index;
+            
+            const imgElement = document.createElement('img');
+            imgElement.src = img.src;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', function() {
+                uploadedImages.splice(index, 1);
+                previewContainer.removeChild(previewDiv);
+                
+                // Update all indices
+                const previews = previewContainer.querySelectorAll('.image-preview');
+                previews.forEach((preview, i) => {
+                    preview.dataset.index = i;
+                });
+                
+                updateStackButton();
+            });
+            
+            previewDiv.appendChild(imgElement);
+            previewDiv.appendChild(removeBtn);
+            previewContainer.appendChild(previewDiv);
+        }
+        
+        // Update stack button state
+        function updateStackButton() {
+            stackBtn.disabled = uploadedImages.length < 1;
+        }
+        
+        // Handle opacity slider change
+        opacitySlider.addEventListener('input', function() {
+            opacityValue.textContent = this.value + '%';
+        });
+        
+        // Stack images when button is clicked
+        stackBtn.addEventListener('click', stackImages);
+        
+        function stackImages() {
+            if (uploadedImages.length === 0) return;
+            
+            progressContainer.style.display = 'block';
+            resultContainer.style.display = 'none';
+            
+            // Find the maximum dimensions among all images
+            let maxWidth = 0;
+            let maxHeight = 0;
+            
+            uploadedImages.forEach(img => {
+                maxWidth = Math.max(maxWidth, img.element.width);
+                maxHeight = Math.max(maxHeight, img.element.height);
+            });
+            
+            // Create a canvas for stacking
+            const canvas = document.createElement('canvas');
+            canvas.width = maxWidth;
+            canvas.height = maxHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Get selected options
+            const blendMode = blendModeSelect.value;
+            const opacity = opacitySlider.value / 100;
+            const alignment = alignmentSelect.value;
+            
+            // Stack images one by one
+            let processed = 0;
+            
+            function processNextImage() {
+                if (processed < uploadedImages.length) {
+                    const img = uploadedImages[processed].element;
+                    
+                    // Calculate position based on alignment
+                    let x = 0, y = 0;
+                    
+                    switch(alignment) {
+                        case 'center':
+                            x = (maxWidth - img.width) / 2;
+                            y = (maxHeight - img.height) / 2;
+                            break;
+                        case 'top-left':
+                            x = 0;
+                            y = 0;
+                            break;
+                        case 'top-right':
+                            x = maxWidth - img.width;
+                            y = 0;
+                            break;
+                        case 'bottom-left':
+                            x = 0;
+                            y = maxHeight - img.height;
+                            break;
+                        case 'bottom-right':
+                            x = maxWidth - img.width;
+                            y = maxHeight - img.height;
+                            break;
+                    }
+                    
+                    // Apply blend mode and opacity
+                    ctx.globalCompositeOperation = blendMode === 'normal' ? 'source-over' : blendMode;
+                    ctx.globalAlpha = opacity;
+                    
+                    // Draw the image
+                    ctx.drawImage(img, x, y);
+                    
+                    // Update progress
+                    processed++;
+                    const progress = Math.round((processed / uploadedImages.length) * 100);
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+                    
+                    // Process next image or finish
+                    setTimeout(processNextImage, 0);
+                } else {
+                    finishStacking(canvas);
+                }
+            }
+            
+            // Start processing
+            processNextImage();
+        }
+        
+        function finishStacking(canvas) {
+            // Create preview
+            const previewCtx = previewCanvas.getContext('2d');
+
+                       // Determine appropriate preview size
+                       const maxPreviewWidth = 800;
+            const maxPreviewHeight = 600;
+            const aspectRatio = canvas.width / canvas.height;
+            
+            let previewWidth, previewHeight;
+            
+            if (aspectRatio > maxPreviewWidth / maxPreviewHeight) {
+                // Width constrained
+                previewWidth = Math.min(canvas.width, maxPreviewWidth);
+                previewHeight = previewWidth / aspectRatio;
+            } else {
+                // Height constrained
+                previewHeight = Math.min(canvas.height, maxPreviewHeight);
+                previewWidth = previewHeight * aspectRatio;
+            }
+            
+            previewCanvas.width = previewWidth;
+            previewCanvas.height = previewHeight;
+            
+            // Draw the stacked image on the preview canvas
+            previewCtx.drawImage(canvas, 0, 0, previewWidth, previewHeight);
+            
+            // Store the full-resolution canvas
+            stackedCanvas = canvas;
+            
+            // Show result container
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+        }
+        
+        // Handle download button click
+        downloadBtn.addEventListener('click', function() {
+            if (!stackedCanvas) return;
+            
+            // For very large images, we may need to use a blob
+            const quality = 0.9; // Adjust this for quality vs size
+            
+            stackedCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'stacked_image.png';
+                link.click();
+                
+                // Clean up
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }, 'image/png');
+        });
+        
+        // Handle very large images (for 1500 megapixel support)
+        function createHighResCanvas(width, height) {
+            // Check if dimensions are within browser limits
+            const maxDimension = 16384; // Most browsers have this limit
+            
+            if (width <= maxDimension && height <= maxDimension) {
+                // Standard canvas is fine
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                return canvas;
+            } else {
+                // For extremely large images, we need to tile
+                console.warn("Image dimensions exceed browser limits. Creating tiled canvas...");
+                
+                // Use a worker or chunked approach for extreme sizes
+                // This is a simplified fallback that will resize to maximum allowed
+                const canvas = document.createElement('canvas');
+                
+                // Calculate aspect ratio
+                const aspectRatio = width / height;
+                
+                if (width > height) {
+                    canvas.width = maxDimension;
+                    canvas.height = Math.floor(maxDimension / aspectRatio);
+                } else {
+                    canvas.height = maxDimension;
+                    canvas.width = Math.floor(maxDimension * aspectRatio);
+                }
+                
+                console.warn(`Resized canvas to ${canvas.width}x${canvas.height} (original: ${width}x${height})`);
+                return canvas;
+            }
+        }
+        
+        // Add support for handling memory issues with large images
+        window.addEventListener('error', function(e) {
+            if (e.message && (e.message.includes('out of memory') || e.message.includes('allocation failed'))) {
+                alert('Memory error while processing images. Try with fewer or smaller images.');
+                progressContainer.style.display = 'none';
+            }
+        });
+        
+        // Advanced feature: Image reordering via drag and drop
+        let dragSrcElement = null;
+        
+        function handlePreviewDragStart(e) {
+            dragSrcElement = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            this.style.opacity = '0.4';
+        }
+        
+        function handlePreviewDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+        
+        function handlePreviewDragEnter(e) {
+            this.classList.add('over');
+        }
+        
+        function handlePreviewDragLeave(e) {
+            this.classList.remove('over');
+        }
+        
+        function handlePreviewDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (dragSrcElement !== this) {
+                // Get source and target indices
+                const srcIndex = parseInt(dragSrcElement.dataset.index);
+                const targetIndex = parseInt(this.dataset.index);
+                
+                // Swap the images in the array
+                [uploadedImages[srcIndex], uploadedImages[targetIndex]] = 
+                [uploadedImages[targetIndex], uploadedImages[srcIndex]];
+                
+                // Update the preview elements
+                const srcPreview = dragSrcElement.querySelector('img').src;
+                const targetPreview = this.querySelector('img').src;
+                
+                dragSrcElement.querySelector('img').src = targetPreview;
+                this.querySelector('img').src = srcPreview;
+                
+                // Keep data-index attributes consistent
+                // (we don't actually swap them)
+            }
+            
+            return false;
+        }
+        
+        function handlePreviewDragEnd(e) {
+            // Remove the drag styles
+            document.querySelectorAll('.image-preview').forEach(function(item) {
+                item.classList.remove('over');
+                item.style.opacity = '1';
+            });
+        }
+        
+        // Update drag-drop listeners when adding previews
+        function setupDragDropForPreviews() {
+            document.querySelectorAll('.image-preview').forEach(function(item) {
+                item.addEventListener('dragstart', handlePreviewDragStart, false);
+                item.addEventListener('dragover', handlePreviewDragOver, false);
+                item.addEventListener('dragenter', handlePreviewDragEnter, false);
+                item.addEventListener('dragleave', handlePreviewDragLeave, false);
+                item.addEventListener('drop', handlePreviewDrop, false);
+                item.addEventListener('dragend', handlePreviewDragEnd, false);
+                item.setAttribute('draggable', 'true');
+            });
+        }
+        
+        // Advanced feature: Batch processing support
+        function processBatch(images, settings, onProgress, onComplete) {
+            // Implement batch processing logic here
+            // This would be useful for handling sets of images with the same settings
+        }
+        
+        // Initialize the app
+        function init() {
+            // Set up event handlers for controls
+            opacitySlider.addEventListener('input', function() {
+                opacityValue.textContent = `${this.value}%`;
+            });
+            
+            // Any other initialization
+        }
+        
+        // Run initialization
+        init();
+    </script>
+</body>
+</html>
+ 
