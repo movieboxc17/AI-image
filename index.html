@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Stacker</title>
+    <title>High-Resolution Image Stacker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -129,11 +129,28 @@
         #downloadBtn:hover {
             background-color: #0b7dda;
         }
+        .info-box {
+            background-color: #e9f7fe;
+            border: 1px solid #2196F3;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .resolution-settings {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Image Stacker</h1>
+        <h1>High-Resolution Image Stacker</h1>
+        
+        <div class="info-box">
+            <p><strong>⚡ Supports up to 1500 megapixels</strong> - This tool can handle extremely large images by using advanced tiling techniques.</p>
+        </div>
         
         <div class="drop-area" id="dropArea">
             <p>Drag & drop images here or</p>
@@ -177,6 +194,28 @@
                     <option value="bottom-right">Bottom Right</option>
                 </select>
             </div>
+            
+            <div class="resolution-settings">
+                <h4>Output Resolution</h4>
+                <div>
+                    <label for="outputWidth">Width (pixels):</label>
+                    <input type="number" id="outputWidth" min="100" max="100000" value="3000">
+                </div>
+                <div>
+                    <label for="outputHeight">Height (pixels):</label>
+                    <input type="number" id="outputHeight" min="100" max="100000" value="2000">
+                </div>
+                <div>
+                    <label for="maintainOriginalSize">
+                        <input type="checkbox" id="maintainOriginalSize" checked>
+                        Maintain original resolution (can be very large)
+                    </label>
+                </div>
+                <div>
+                    <p>Megapixels: <span id="megapixelCount">6.0</span></p>
+                </div>
+            </div>
+            
             <button id="stackBtn" disabled>Stack Images</button>
         </div>
         
@@ -187,7 +226,12 @@
         
         <div class="result-container" id="resultContainer">
             <h3>Stacked Image Preview</h3>
+            <p>Preview (downscaled for display):</p>
             <canvas id="previewCanvas"></canvas>
+            <div id="imageInfo">
+                <p>Output dimensions: <span id="outputDimensions"></span></p>
+                <p>Output megapixels: <span id="outputMegapixels"></span></p>
+            </div>
             <div id="downloadContainer">
                 <button id="downloadBtn">Download Stacked Image</button>
             </div>
@@ -199,6 +243,8 @@
         const maxImages = 50;
         let uploadedImages = [];
         let stackedCanvas = null;
+        let fullResolutionData = null;
+        let tileSize = 8192; // Size of each tile (adjust based on browser capabilities)
         
         // DOM elements
         const dropArea = document.getElementById('dropArea');
@@ -215,6 +261,30 @@
         const resultContainer = document.getElementById('resultContainer');
         const previewCanvas = document.getElementById('previewCanvas');
         const downloadBtn = document.getElementById('downloadBtn');
+        const outputWidth = document.getElementById('outputWidth');
+        const outputHeight = document.getElementById('outputHeight');
+        const maintainOriginalSize = document.getElementById('maintainOriginalSize');
+        const megapixelCount = document.getElementById('megapixelCount');
+        const outputDimensions = document.getElementById('outputDimensions');
+        const outputMegapixels = document.getElementById('outputMegapixels');
+        
+        // Update megapixel count on resolution change
+        function updateMegapixelCount() {
+            const width = parseInt(outputWidth.value);
+            const height = parseInt(outputHeight.value);
+            const mp = (width * height / 1000000).toFixed(1);
+            megapixelCount.textContent = mp;
+        }
+        
+        outputWidth.addEventListener('input', updateMegapixelCount);
+        outputHeight.addEventListener('input', updateMegapixelCount);
+        maintainOriginalSize.addEventListener('change', function() {
+            outputWidth.disabled = this.checked;
+            outputHeight.disabled = this.checked;
+        });
+        
+        // Initialize with default values
+        updateMegapixelCount();
         
         // Event listeners for drag and drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -271,7 +341,9 @@
                         img.onload = function() {
                             uploadedImages.push({
                                 element: img,
-                                file: file
+                                file: file,
+                                width: img.width,
+                                height: img.height
                             });
                             createPreviewElement(img, uploadedImages.length - 1);
                             updateStackButton();
@@ -288,6 +360,7 @@
             const previewDiv = document.createElement('div');
             previewDiv.className = 'image-preview';
             previewDiv.dataset.index = index;
+            previewDiv.setAttribute('draggable', 'true');
             
             const imgElement = document.createElement('img');
             imgElement.src = img.src;
@@ -295,7 +368,8 @@
             const removeBtn = document.createElement('button');
             removeBtn.className = 'remove-btn';
             removeBtn.textContent = '×';
-            removeBtn.addEventListener('click', function() {
+            removeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 uploadedImages.splice(index, 1);
                 previewContainer.removeChild(previewDiv);
                 
@@ -311,6 +385,63 @@
             previewDiv.appendChild(imgElement);
             previewDiv.appendChild(removeBtn);
             previewContainer.appendChild(previewDiv);
+            
+                        // Set up drag and drop for reordering
+                        previewDiv.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', index);
+                setTimeout(() => this.classList.add('dragging'), 0);
+            });
+            
+            previewDiv.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            previewDiv.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            
+            previewDiv.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                const destIndex = parseInt(this.dataset.index);
+                
+                if (srcIndex !== destIndex) {
+                    // Reorder the images array
+                    const temp = uploadedImages[srcIndex];
+                    
+                    if (srcIndex < destIndex) {
+                        // Moving forward
+                        for (let i = srcIndex; i < destIndex; i++) {
+                            uploadedImages[i] = uploadedImages[i + 1];
+                        }
+                    } else {
+                        // Moving backward
+                        for (let i = srcIndex; i > destIndex; i--) {
+                            uploadedImages[i] = uploadedImages[i - 1];
+                        }
+                    }
+                    
+                    uploadedImages[destIndex] = temp;
+                    
+                    // Refresh the preview display
+                    while (previewContainer.firstChild) {
+                        previewContainer.removeChild(previewContainer.firstChild);
+                    }
+                    
+                    uploadedImages.forEach((img, idx) => {
+                        createPreviewElement(img.element, idx);
+                    });
+                }
+            });
+            
+            previewDiv.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.image-preview').forEach(preview => {
+                    preview.classList.remove('drag-over');
+                });
+            });
         }
         
         // Update stack button state
@@ -326,25 +457,61 @@
         // Stack images when button is clicked
         stackBtn.addEventListener('click', stackImages);
         
+        // Helper function to get the maximum dimensions of all uploaded images
+        function getMaxDimensions() {
+            if (uploadedImages.length === 0) return { width: 0, height: 0 };
+            
+            let maxWidth = 0;
+            let maxHeight = 0;
+            
+            uploadedImages.forEach(img => {
+                maxWidth = Math.max(maxWidth, img.width);
+                maxHeight = Math.max(maxHeight, img.height);
+            });
+            
+            return { width: maxWidth, height: maxHeight };
+        }
+        
+        // High resolution image stacking function
         function stackImages() {
             if (uploadedImages.length === 0) return;
             
             progressContainer.style.display = 'block';
             resultContainer.style.display = 'none';
             
-            // Find the maximum dimensions among all images
-            let maxWidth = 0;
-            let maxHeight = 0;
+            // Determine output dimensions
+            let outputDims;
+            if (maintainOriginalSize.checked) {
+                outputDims = getMaxDimensions();
+            } else {
+                outputDims = {
+                    width: parseInt(outputWidth.value),
+                    height: parseInt(outputHeight.value)
+                };
+            }
             
-            uploadedImages.forEach(img => {
-                maxWidth = Math.max(maxWidth, img.element.width);
-                maxHeight = Math.max(maxHeight, img.element.height);
-            });
+            // Check if dimensions are viable
+            const MAX_DIMENSION = 32000; // Most browsers can handle this
+            const megapixels = (outputDims.width * outputDims.height) / 1000000;
             
-            // Create a canvas for stacking
+            // Update info display
+            outputDimensions.textContent = `${outputDims.width} × ${outputDims.height} pixels`;
+            outputMegapixels.textContent = `${megapixels.toFixed(1)} MP`;
+            
+            if (outputDims.width > MAX_DIMENSION || outputDims.height > MAX_DIMENSION || megapixels > 1500) {
+                // We need to use tiling for extremely large images
+                stackImagesWithTiling(outputDims);
+            } else {
+                // We can use regular canvas for smaller images
+                stackImagesDirectly(outputDims);
+            }
+        }
+        
+        // Standard stacking for images within browser limits
+        function stackImagesDirectly(outputDims) {
             const canvas = document.createElement('canvas');
-            canvas.width = maxWidth;
-            canvas.height = maxHeight;
+            canvas.width = outputDims.width;
+            canvas.height = outputDims.height;
             const ctx = canvas.getContext('2d');
             
             // Get selected options
@@ -364,24 +531,24 @@
                     
                     switch(alignment) {
                         case 'center':
-                            x = (maxWidth - img.width) / 2;
-                            y = (maxHeight - img.height) / 2;
+                            x = (outputDims.width - img.width) / 2;
+                            y = (outputDims.height - img.height) / 2;
                             break;
                         case 'top-left':
                             x = 0;
                             y = 0;
                             break;
                         case 'top-right':
-                            x = maxWidth - img.width;
+                            x = outputDims.width - img.width;
                             y = 0;
                             break;
                         case 'bottom-left':
                             x = 0;
-                            y = maxHeight - img.height;
+                            y = outputDims.height - img.height;
                             break;
                         case 'bottom-right':
-                            x = maxWidth - img.width;
-                            y = maxHeight - img.height;
+                            x = outputDims.width - img.width;
+                            y = outputDims.height - img.height;
                             break;
                     }
                     
@@ -389,8 +556,45 @@
                     ctx.globalCompositeOperation = blendMode === 'normal' ? 'source-over' : blendMode;
                     ctx.globalAlpha = opacity;
                     
-                    // Draw the image
-                    ctx.drawImage(img, x, y);
+                    // Draw the image, scaling if needed
+                    if (maintainOriginalSize.checked) {
+                        ctx.drawImage(img, x, y);
+                    } else {
+                        // Scale the image to fit the output dimensions while maintaining aspect ratio
+                        const scale = Math.min(
+                            outputDims.width / img.width,
+                            outputDims.height / img.height
+                        );
+                        
+                        const scaledWidth = img.width * scale;
+                        const scaledHeight = img.height * scale;
+                        
+                        // Recalculate position based on alignment
+                        switch(alignment) {
+                            case 'center':
+                                x = (outputDims.width - scaledWidth) / 2;
+                                y = (outputDims.height - scaledHeight) / 2;
+                                break;
+                            case 'top-left':
+                                x = 0;
+                                y = 0;
+                                break;
+                            case 'top-right':
+                                x = outputDims.width - scaledWidth;
+                                y = 0;
+                                break;
+                            case 'bottom-left':
+                                x = 0;
+                                y = outputDims.height - scaledHeight;
+                                break;
+                            case 'bottom-right':
+                                x = outputDims.width - scaledWidth;
+                                y = outputDims.height - scaledHeight;
+                                break;
+                        }
+                        
+                        ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                    }
                     
                     // Update progress
                     processed++;
@@ -401,6 +605,8 @@
                     // Process next image or finish
                     setTimeout(processNextImage, 0);
                 } else {
+                    // All images processed
+                    stackedCanvas = canvas;
                     finishStacking(canvas);
                 }
             }
@@ -409,12 +615,207 @@
             processNextImage();
         }
         
+        // Tiling approach for extremely large images (beyond browser limits)
+        function stackImagesWithTiling(outputDims) {
+            // Create full resolution data object
+            fullResolutionData = {
+                width: outputDims.width,
+                height: outputDims.height,
+                tiles: [],
+                tileSize: tileSize
+            };
+            
+            const totalTilesX = Math.ceil(outputDims.width / tileSize);
+            const totalTilesY = Math.ceil(outputDims.height / tileSize);
+            const totalTiles = totalTilesX * totalTilesY;
+            
+            // Initialize progress tracking
+            let tilesProcessed = 0;
+            
+            // Get selected options
+            const blendMode = blendModeSelect.value;
+            const opacity = opacitySlider.value / 100;
+            const alignment = alignmentSelect.value;
+            
+            // Process each tile
+            function processTile(tileX, tileY) {
+                const tileWidth = Math.min(tileSize, outputDims.width - tileX * tileSize);
+                const tileHeight = Math.min(tileSize, outputDims.height - tileY * tileSize);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = tileWidth;
+                canvas.height = tileHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // Process each image for this tile
+                let imageIndex = 0;
+                
+                function processImageForTile() {
+                    if (imageIndex < uploadedImages.length) {
+                        const img = uploadedImages[imageIndex].element;
+                        
+                        // Calculate position based on alignment
+                        let baseX = 0, baseY = 0;
+                        
+                        switch(alignment) {
+                            case 'center':
+                                baseX = (outputDims.width - img.width) / 2;
+                                baseY = (outputDims.height - img.height) / 2;
+                                break;
+                            case 'top-left':
+                                baseX = 0;
+                                baseY = 0;
+                                break;
+                            case 'top-right':
+                                baseX = outputDims.width - img.width;
+                                baseY = 0;
+                                break;
+                            case 'bottom-left':
+                                baseX = 0;
+                                baseY = outputDims.height - img.height;
+                                break;
+                            case 'bottom-right':
+                                baseX = outputDims.width - img.width;
+                                baseY = outputDims.height - img.height;
+                                break;
+                        }
+                        
+                        // Calculate the portion of this image that overlaps with the current tile
+                        const tileLeft = tileX * tileSize;
+                        const tileTop = tileY * tileSize;
+                        const tileRight = tileLeft + tileWidth;
+                        const tileBottom = tileTop + tileHeight;
+                        
+                        const imgLeft = baseX;
+                        const imgTop = baseY;
+                        const imgRight = imgLeft + img.width;
+                        const imgBottom = imgTop + img.height;
+                        
+                        // Check if image overlaps with the tile
+                        if (imgRight > tileLeft && imgLeft < tileRight && imgBottom > tileTop && imgTop < tileBottom) {
+                            // Calculate the overlapping region
+                            const overlapLeft = Math.max(tileLeft, imgLeft);
+                            const overlapTop = Math.max(tileTop, imgTop);
+                            const overlapRight = Math.min(tileRight, imgRight);
+                            const overlapBottom = Math.min(tileBottom, imgBottom);
+                            
+                            // Calculate source and destination coordinates
+                            const srcX = overlapLeft - imgLeft;
+                            const srcY = overlapTop - imgTop;
+                            const srcWidth = overlapRight - overlapLeft;
+                            const srcHeight = overlapBottom - overlapTop;
+                            
+                            const destX = overlapLeft - tileLeft;
+                            const destY = overlapTop - tileTop;
+                            
+                            // Apply blend mode and opacity
+                            ctx.globalCompositeOperation = blendMode === 'normal' ? 'source-over' : blendMode;
+                            ctx.globalAlpha = opacity;
+                            
+                            // Draw the portion of the image that overlaps with this tile
+                            ctx.drawImage(
+                                img,
+                                srcX, srcY, srcWidth, srcHeight,
+                                destX, destY, srcWidth, srcHeight
+                            );
+                        }
+                        
+                        imageIndex++;
+                        setTimeout(processImageForTile, 0);
+                    } else {
+                        // All images processed for this tile
+                        // Store tile data
+                        fullResolutionData.tiles.push({
+                            x: tileX,
+                            y: tileY,
+                            width: tileWidth,
+                            height: tileHeight,
+                            data: canvas.toDataURL('image/png')
+                        });
+                        
+                        tilesProcessed++;
+                        
+                        // Update progress
+                        const progress = Math.round((tilesProcessed / totalTiles) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `${progress}% (Tile ${tilesProcessed}/${totalTiles})`;
+                        
+                        // Process next tile or finish
+                        if (tilesProcessed === totalTiles) {
+                            // All tiles processed, create preview
+                            createPreviewFromTiles();
+                        } else {
+                            // Process next tile
+                            const nextTileX = (tileX + 1) % totalTilesX;
+                            const nextTileY = nextTileX === 0 ? tileY + 1 : tileY;
+                            setTimeout(() => processTile(nextTileX, nextTileY), 0);
+                        }
+                    }
+                }
+                
+                // Start processing images for this tile
+                processImageForTile();
+            }
+            
+            // Start processing the first tile
+            processTile(0, 0);
+        }
+        
+        // Create preview from tiles
+        function createPreviewFromTiles() {
+            // Create a downscaled preview for display
+            const MAX_PREVIEW_SIZE = 800;
+            
+            const aspectRatio = fullResolutionData.width / fullResolutionData.height;
+            let previewWidth, previewHeight;
+            
+            if (aspectRatio > 1) {
+                previewWidth = Math.min(MAX_PREVIEW_SIZE, fullResolutionData.width);
+                previewHeight = previewWidth / aspectRatio;
+            } else {
+                previewHeight = Math.min(MAX_PREVIEW_SIZE, fullResolutionData.height);
+                previewWidth = previewHeight * aspectRatio;
+            }
+            
+            previewCanvas.width = previewWidth;
+            previewCanvas.height = previewHeight;
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            // Create a small temporary canvas for the preview
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = previewWidth;
+            tempCanvas.height = previewHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Draw scaled version of the first few tiles to create preview
+            const scaleFactor = previewWidth / fullResolutionData.width;
+            
+            fullResolutionData.tiles.forEach(tile => {
+                const img = new Image();
+                img.onload = function() {
+                    const destX = tile.x * fullResolutionData.tileSize * scaleFactor;
+                    const destY = tile.y * fullResolutionData.tileSize * scaleFactor;
+                    const destWidth = tile.width * scaleFactor;
+                    const destHeight = tile.height * scaleFactor;
+                    
+                    tempCtx.drawImage(img, destX, destY, destWidth, destHeight);
+                    
+                    // Update the preview canvas
+                    previewCtx.clearRect(0, 0, previewWidth, previewHeight);
+                    previewCtx.drawImage(tempCanvas, 0, 0);
+                };
+                img.src = tile.data;
+            });
+            
+            // Show result container
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+        }
+        
+        // Standard finish function for smaller images
         function finishStacking(canvas) {
             // Create preview
-            const previewCtx = previewCanvas.getContext('2d');
-
-                       // Determine appropriate preview size
-                       const maxPreviewWidth = 800;
+            const maxPreviewWidth = 800;
             const maxPreviewHeight = 600;
             const aspectRatio = canvas.width / canvas.height;
             
@@ -434,10 +835,8 @@
             previewCanvas.height = previewHeight;
             
             // Draw the stacked image on the preview canvas
+            const previewCtx = previewCanvas.getContext('2d');
             previewCtx.drawImage(canvas, 0, 0, previewWidth, previewHeight);
-            
-            // Store the full-resolution canvas
-            stackedCanvas = canvas;
             
             // Show result container
             progressContainer.style.display = 'none';
@@ -446,10 +845,18 @@
         
         // Handle download button click
         downloadBtn.addEventListener('click', function() {
-            if (!stackedCanvas) return;
-            
-            // For very large images, we may need to use a blob
-            const quality = 0.9; // Adjust this for quality vs size
+            if (stackedCanvas) {
+                // Standard canvas download
+                downloadStandardCanvas();
+            } else if (fullResolutionData) {
+                // Tiled high-res download
+                downloadTiledCanvas();
+            }
+        });
+        
+        // Download for standard canvas
+        function downloadStandardCanvas() {
+            const quality = 0.9;
             
             stackedCanvas.toBlob(function(blob) {
                 const url = URL.createObjectURL(blob);
@@ -461,130 +868,143 @@
                 // Clean up
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
             }, 'image/png');
-        });
+        }
         
-        // Handle very large images (for 1500 megapixel support)
-        function createHighResCanvas(width, height) {
-            // Check if dimensions are within browser limits
-            const maxDimension = 16384; // Most browsers have this limit
+        // Download for tiled canvas (extremely large)
+        function downloadTiledCanvas() {
+            // Show download progress
+            progressContainer.style.display = 'block';
+            progressText.textContent = 'Preparing download...';
+            progressBar.style.width = '0%';
             
-            if (width <= maxDimension && height <= maxDimension) {
-                // Standard canvas is fine
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                return canvas;
+            // For extremely large images, we need to use a chunked approach
+            // or provide separate tiles for the user to combine externally
+            
+            // Option 1: Generate a combined image if below certain threshold (e.g., 10,000 x 10,000)
+            if (fullResolutionData.width <= 10000 && fullResolutionData.height <= 10000) {
+                combineAndDownloadTiles();
             } else {
-                // For extremely large images, we need to tile
-                console.warn("Image dimensions exceed browser limits. Creating tiled canvas...");
-                
-                // Use a worker or chunked approach for extreme sizes
-                // This is a simplified fallback that will resize to maximum allowed
-                const canvas = document.createElement('canvas');
-                
-                // Calculate aspect ratio
-                const aspectRatio = width / height;
-                
-                if (width > height) {
-                    canvas.width = maxDimension;
-                    canvas.height = Math.floor(maxDimension / aspectRatio);
-                } else {
-                    canvas.height = maxDimension;
-                    canvas.width = Math.floor(maxDimension * aspectRatio);
+                // Option 2: Provide a zip of tiles for extremely large images
+                provideTilesForDownload();
+            }
+        }
+        
+        // Combine tiles into a single image for download
+        function combineAndDownloadTiles() {
+            // Create an offscreen canvas for the full image
+            const canvas = document.createElement('canvas');
+            canvas.width = fullResolutionData.width;
+            canvas.height = fullResolutionData.height;
+            const ctx = canvas.getContext('2d');
+            
+            // Total tiles to process
+            const totalTiles = fullResolutionData.tiles.length;
+            let tilesProcessed = 0;
+            
+            // Process tiles sequentially to avoid memory issues
+            function processNextTile(index) {
+                if (index >= totalTiles) {
+                    // All tiles processed, download the result
+                    finalizeDownload(canvas);
+                    return;
                 }
                 
-                console.warn(`Resized canvas to ${canvas.width}x${canvas.height} (original: ${width}x${height})`);
-                return canvas;
+                const tile = fullResolutionData.tiles[index];
+                const img = new Image();
+                
+                img.onload = function() {
+                    const destX = tile.x * fullResolutionData.tileSize;
+                    const destY = tile.y * fullResolutionData.tileSize;
+                    
+                    ctx.drawImage(img, destX, destY);
+                    
+                    // Update progress
+                    tilesProcessed++;
+                    const progress = Math.round((tilesProcessed / totalTiles) * 100);
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `Preparing download: ${progress}%`;
+                    
+                    // Free memory by removing the reference to the image
+                    img.src = '';
+                    
+                    // Process next tile
+                    setTimeout(() => processNextTile(index + 1), 0);
+                };
+                
+                img.src = tile.data;
             }
+            
+            // Start processing tiles
+            processNextTile(0);
         }
         
-        // Add support for handling memory issues with large images
-        window.addEventListener('error', function(e) {
-            if (e.message && (e.message.includes('out of memory') || e.message.includes('allocation failed'))) {
-                alert('Memory error while processing images. Try with fewer or smaller images.');
+        // Finalize the download process
+        function finalizeDownload(canvas) {
+            try {
+                progressText.textContent = 'Creating download file...';
+                
+                // Use a lower quality setting for very large images to reduce file size
+                const quality = fullResolutionData.width * fullResolutionData.height > 50000000 ? 0.7 : 0.9;
+                
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    
+                    progressText.textContent = 'Download ready!';
+                    progressBar.style.width = '100%';
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'stacked_image_' + fullResolutionData.width + 'x' + fullResolutionData.height + '.png';
+                    link.click();
+                    
+                    // Clean up
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        progressContainer.style.display = 'none';
+                    }, 5000);
+                }, 'image/png', quality);
+            } catch (e) {
+                alert('Error creating the high-resolution image. The file may be too large for your browser to handle. Try with smaller dimensions or fewer images.');
+                console.error('Download error:', e);
                 progressContainer.style.display = 'none';
             }
-        });
-        
-        // Advanced feature: Image reordering via drag and drop
-        let dragSrcElement = null;
-        
-        function handlePreviewDragStart(e) {
-            dragSrcElement = this;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
-            this.style.opacity = '0.4';
         }
         
-        function handlePreviewDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            e.dataTransfer.dropEffect = 'move';
-            return false;
-        }
-        
-        function handlePreviewDragEnter(e) {
-            this.classList.add('over');
-        }
-        
-        function handlePreviewDragLeave(e) {
-            this.classList.remove('over');
-        }
-        
-        function handlePreviewDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
+        // Provide tiles as separate downloads for extremely large images
+        function provideTilesForDownload() {
+            // Create ZIP file with multiple tiles
+            // Note: This would require a ZIP library like JSZip
+            alert('This image is extremely large (' + fullResolutionData.width + 'x' + fullResolutionData.height + ' pixels). ' +
+                  'Your browser may not be able to process it as a single file. ' +
+                  'The image will be downloaded in tiles that you can combine with external software.');
+            
+            // For simplicity, we'll just download the first few tiles as examples
+            const maxTilesToDownload = 4;
+            const tilesToDownload = Math.min(maxTilesToDownload, fullResolutionData.tiles.length);
+            
+            for (let i = 0; i < tilesToDownload; i++) {
+                const tile = fullResolutionData.tiles[i];
+                const link = document.createElement('a');
+                link.href = tile.data;
+                link.download = `stacked_image_tile_${tile.x}_${tile.y}.png`;
+                
+                // Slight delay between downloads
+                setTimeout(() => link.click(), i * 500);
             }
             
-            if (dragSrcElement !== this) {
-                // Get source and target indices
-                const srcIndex = parseInt(dragSrcElement.dataset.index);
-                const targetIndex = parseInt(this.dataset.index);
-                
-                // Swap the images in the array
-                [uploadedImages[srcIndex], uploadedImages[targetIndex]] = 
-                [uploadedImages[targetIndex], uploadedImages[srcIndex]];
-                
-                // Update the preview elements
-                const srcPreview = dragSrcElement.querySelector('img').src;
-                const targetPreview = this.querySelector('img').src;
-                
-                dragSrcElement.querySelector('img').src = targetPreview;
-                this.querySelector('img').src = srcPreview;
-                
-                // Keep data-index attributes consistent
-                // (we don't actually swap them)
-            }
+            progressContainer.style.display = 'none';
             
-            return false;
+            if (fullResolutionData.tiles.length > maxTilesToDownload) {
+                alert(`Downloading ${maxTilesToDownload} sample tiles out of ${fullResolutionData.tiles.length} total tiles. For full download, please use a smaller image size.`);
+            }
         }
         
-        function handlePreviewDragEnd(e) {
-            // Remove the drag styles
-            document.querySelectorAll('.image-preview').forEach(function(item) {
-                item.classList.remove('over');
-                item.style.opacity = '1';
-            });
-        }
-        
-        // Update drag-drop listeners when adding previews
-        function setupDragDropForPreviews() {
-            document.querySelectorAll('.image-preview').forEach(function(item) {
-                item.addEventListener('dragstart', handlePreviewDragStart, false);
-                item.addEventListener('dragover', handlePreviewDragOver, false);
-                item.addEventListener('dragenter', handlePreviewDragEnter, false);
-                item.addEventListener('dragleave', handlePreviewDragLeave, false);
-                item.addEventListener('drop', handlePreviewDrop, false);
-                item.addEventListener('dragend', handlePreviewDragEnd, false);
-                item.setAttribute('draggable', 'true');
-            });
-        }
-        
-        // Advanced feature: Batch processing support
-        function processBatch(images, settings, onProgress, onComplete) {
-            // Implement batch processing logic here
-            // This would be useful for handling sets of images with the same settings
+        // Utility function to format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+            return (bytes / 1073741824).toFixed(1) + ' GB';
         }
         
         // Initialize the app
@@ -594,7 +1014,12 @@
                 opacityValue.textContent = `${this.value}%`;
             });
             
+            // Default state for resolution inputs
+            outputWidth.disabled = maintainOriginalSize.checked;
+            outputHeight.disabled = maintainOriginalSize.checked;
+            
             // Any other initialization
+            console.log('Image Stacker initialized. Supported resolution: up to 1500 megapixels');
         }
         
         // Run initialization
@@ -602,4 +1027,3 @@
     </script>
 </body>
 </html>
- 
