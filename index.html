@@ -29,6 +29,7 @@
             text-align: center;
             margin: 20px 0;
             transition: background-color 0.3s;
+            cursor: pointer;
         }
         .drop-area.highlight {
             background-color: #e9f7fe;
@@ -142,6 +143,15 @@
             background-color: #f0f0f0;
             border-radius: 4px;
         }
+        /* For debug */
+        .debug-info {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -154,10 +164,12 @@
         
         <div class="drop-area" id="dropArea">
             <p>Drag & drop images here or</p>
-            <input type="file" id="fileInput" accept="image/*" multiple hidden>
-            <button onclick="document.getElementById('fileInput').click()">Select Images</button>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+            <button id="selectFilesBtn">Select Images</button>
             <p><small>You can upload up to 50 images</small></p>
         </div>
+        
+        <div class="debug-info" id="debugInfo"></div>
 
         <div class="preview-container" id="previewContainer"></div>
         
@@ -249,6 +261,7 @@
         // DOM elements
         const dropArea = document.getElementById('dropArea');
         const fileInput = document.getElementById('fileInput');
+        const selectFilesBtn = document.getElementById('selectFilesBtn');
         const previewContainer = document.getElementById('previewContainer');
         const stackBtn = document.getElementById('stackBtn');
         const blendModeSelect = document.getElementById('blendMode');
@@ -267,6 +280,14 @@
         const megapixelCount = document.getElementById('megapixelCount');
         const outputDimensions = document.getElementById('outputDimensions');
         const outputMegapixels = document.getElementById('outputMegapixels');
+        const debugInfo = document.getElementById('debugInfo');
+        
+        // Debug function
+        function debug(message) {
+            console.log(message);
+            debugInfo.style.display = 'block';
+            debugInfo.textContent += message + '\n';
+        }
         
         // Update megapixel count on resolution change
         function updateMegapixelCount() {
@@ -312,22 +333,39 @@
             dropArea.classList.remove('highlight');
         }
         
-        // Handle file drop
-        dropArea.addEventListener('drop', handleDrop, false);
+        // Make the entire drop area clickable to open file picker
+        dropArea.addEventListener('click', function() {
+            fileInput.click();
+        });
         
-        function handleDrop(e) {
+        // Also make the select button work correctly
+        selectFilesBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // Prevent triggering the dropArea click
+            fileInput.click();
+        });
+        
+        // Handle file drop
+        dropArea.addEventListener('drop', function(e) {
             const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
+            if (dt.files && dt.files.length > 0) {
+                handleFiles(dt.files);
+            }
+        });
         
         // Handle file input change
         fileInput.addEventListener('change', function() {
-            handleFiles(this.files);
+            if (this.files && this.files.length > 0) {
+                handleFiles(this.files);
+                debug(`Selected ${this.files.length} files`);
+            }
         });
         
         // Process uploaded files
         function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            debug(`Processing ${files.length} files`);
+            
             if (uploadedImages.length + files.length > maxImages) {
                 alert(`You can only upload up to ${maxImages} images. Only the first ${maxImages - uploadedImages.length} will be added.`);
                 files = Array.from(files).slice(0, maxImages - uploadedImages.length);
@@ -336,21 +374,41 @@
             Array.from(files).forEach(file => {
                 if (file.type.match('image.*')) {
                     const reader = new FileReader();
+                    
                     reader.onload = function(e) {
                         const img = new Image();
+                        
                         img.onload = function() {
+                            debug(`Loaded image: ${file.name} (${img.width}x${img.height})`);
+                            
                             uploadedImages.push({
                                 element: img,
                                 file: file,
                                 width: img.width,
                                 height: img.height
                             });
+                            
                             createPreviewElement(img, uploadedImages.length - 1);
                             updateStackButton();
                         };
+                        
+                        img.onerror = function() {
+                            debug(`Error loading image: ${file.name}`);
+                            alert(`Error loading image: ${file.name}`);
+                        };
+                        
                         img.src = e.target.result;
                     };
+                    
+                    reader.onerror = function() {
+                        debug(`Error reading file: ${file.name}`);
+                        alert(`Error reading file: ${file.name}`);
+                    };
+                    
                     reader.readAsDataURL(file);
+                } else {
+                    debug(`Skipped non-image file: ${file.name}`);
+                    alert(`"${file.name}" is not a valid image file.`);
                 }
             });
         }
@@ -386,8 +444,8 @@
             previewDiv.appendChild(removeBtn);
             previewContainer.appendChild(previewDiv);
             
-                        // Set up drag and drop for reordering
-                        previewDiv.addEventListener('dragstart', function(e) {
+            // Set up drag and drop for reordering
+            previewDiv.addEventListener('dragstart', function(e) {
                 e.dataTransfer.setData('text/plain', index);
                 setTimeout(() => this.classList.add('dragging'), 0);
             });
@@ -740,8 +798,8 @@
                         progressBar.style.width = `${progress}%`;
                         progressText.textContent = `${progress}% (Tile ${tilesProcessed}/${totalTiles})`;
                         
-                        // Process next tile or finish
-                        if (tilesProcessed === totalTiles) {
+                                                // Process next tile or finish
+                                                if (tilesProcessed === totalTiles) {
                             // All tiles processed, create preview
                             createPreviewFromTiles();
                         } else {
@@ -790,6 +848,7 @@
             // Draw scaled version of the first few tiles to create preview
             const scaleFactor = previewWidth / fullResolutionData.width;
             
+            let tilesLoaded = 0;
             fullResolutionData.tiles.forEach(tile => {
                 const img = new Image();
                 img.onload = function() {
@@ -800,16 +859,19 @@
                     
                     tempCtx.drawImage(img, destX, destY, destWidth, destHeight);
                     
-                    // Update the preview canvas
-                    previewCtx.clearRect(0, 0, previewWidth, previewHeight);
-                    previewCtx.drawImage(tempCanvas, 0, 0);
+                    tilesLoaded++;
+                    if (tilesLoaded === fullResolutionData.tiles.length) {
+                        // All tiles loaded for preview, update the display canvas
+                        previewCtx.clearRect(0, 0, previewWidth, previewHeight);
+                        previewCtx.drawImage(tempCanvas, 0, 0);
+                        
+                        // Show result container
+                        progressContainer.style.display = 'none';
+                        resultContainer.style.display = 'block';
+                    }
                 };
                 img.src = tile.data;
             });
-            
-            // Show result container
-            progressContainer.style.display = 'none';
-            resultContainer.style.display = 'block';
         }
         
         // Standard finish function for smaller images
@@ -931,6 +993,13 @@
                     setTimeout(() => processNextTile(index + 1), 0);
                 };
                 
+                img.onerror = function() {
+                    debug(`Error loading tile ${index} for download`);
+                    // Continue with next tile even if there's an error
+                    tilesProcessed++;
+                    setTimeout(() => processNextTile(index + 1), 0);
+                };
+                
                 img.src = tile.data;
             }
             
@@ -1018,12 +1087,18 @@
             outputWidth.disabled = maintainOriginalSize.checked;
             outputHeight.disabled = maintainOriginalSize.checked;
             
+            // Make file input visible for direct access and to ensure it works on all browsers
+            fileInput.style.display = 'block';
+            fileInput.style.width = '100%';
+            fileInput.style.margin = '10px 0';
+            fileInput.style.padding = '10px';
+            
             // Any other initialization
-            console.log('Image Stacker initialized. Supported resolution: up to 1500 megapixels');
+            debug('Image Stacker initialized. Supported resolution: up to 1500 megapixels');
         }
         
-        // Run initialization
-        init();
+        // Run initialization when page loads
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
