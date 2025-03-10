@@ -1,438 +1,952 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High-Resolution Image Stacker</title>
-    <!-- Add heic2any library for HEIC support -->
+    <title>Advanced Image Stacker</title>
     <script src="https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <style>
+        :root {
+            /* Light theme variables */
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --accent-color: #4361ee;
+            --accent-hover: #3a56d4;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --danger-color: #e63946;
+            --success-color: #2a9d8f;
+            --drop-area-bg: #f8f9fa;
+            --drop-area-border: #dee2e6;
+            --drop-area-active: #e6f7ff;
+            --progress-bg: #e9ecef;
+            --progress-bar: #4361ee;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --thumb-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        [data-theme="dark"] {
+            /* Dark theme variables */
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #7B68EE;
+            --accent-hover: #9370DB;
+            --border-color: #333333;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --danger-color: #cf6679;
+            --success-color: #03dac6;
+            --drop-area-bg: #2e2e2e;
+            --drop-area-border: #444444;
+            --drop-area-active: #3c3c3c;
+            --progress-bg: #333333;
+            --progress-bar: #7B68EE;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            --thumb-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
         }
+        
         .container {
-            background-color: white;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        @media (min-width: 1024px) {
+            .container {
+                grid-template-columns: 30% 70%;
+            }
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
         }
+        
+        h1, h2, h3 {
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
         h1 {
+            font-size: 1.75rem;
             text-align: center;
-            color: #333;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--accent-color);
+            margin-bottom: 24px;
         }
+        
+        h2 {
+            font-size: 1.5rem;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        h3 {
+            font-size: 1.25rem;
+        }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: var(--card-bg);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--card-shadow);
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+        
+        .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-color);
+        }
+        
+        /* Drop Area */
         .drop-area {
-            border: 3px dashed #ccc;
-            border-radius: 8px;
-            padding: 30px;
+            border: 3px dashed var(--drop-area-border);
+            border-radius: 12px;
+            padding: 40px 20px;
             text-align: center;
-            margin: 20px 0;
-            transition: background-color 0.3s;
+            margin-bottom: 20px;
+            background-color: var(--drop-area-bg);
+            transition: all 0.3s ease;
+            position: relative;
             cursor: pointer;
         }
+        
         .drop-area.highlight {
-            background-color: #e9f7fe;
-            border-color: #2196F3;
+            background-color: var(--drop-area-active);
+            border-color: var(--accent-color);
+            transform: scale(1.01);
         }
-        .preview-container {
+        
+        .drop-area h3 {
+            margin-bottom: 10px;
+        }
+        
+        .file-input-container {
+            margin: 15px 0;
             display: flex;
-            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .file-input-label {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 500;
+            display: inline-block;
+        }
+        
+        .file-input-label:hover {
+            background-color: var(--accent-hover);
+        }
+        
+        #fileInput {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .supported-formats {
+            font-size: 0.9rem;
+            margin: 10px 0;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+        
+        /* Images Preview Grid */
+        .preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
             gap: 10px;
             margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: var(--drop-area-bg);
+            border: 1px solid var(--drop-area-border);
         }
+        
         .image-preview {
             position: relative;
-            width: 100px;
-            height: 100px;
+            border-radius: 8px;
             overflow: hidden;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            aspect-ratio: 1/1;
+            box-shadow: var(--thumb-shadow);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
+        
+        .image-preview:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
         .image-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            display: block;
         }
+        
         .image-preview .remove-btn {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: rgba(255,0,0,0.7);
+            top: 4px;
+            right: 4px;
+            background-color: var(--danger-color);
             color: white;
             border: none;
             border-radius: 50%;
             width: 20px;
             height: 20px;
-            font-size: 12px;
+            font-size: 10px;
+            line-height: 1;
             cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 2;
         }
-        .controls {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+        
+        .image-preview:hover .remove-btn {
+            opacity: 1;
         }
-        button {
-            background-color: #4CAF50;
+        
+        .image-count {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+        
+        .image-count-number {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .clear-all {
+            background-color: var(--danger-color);
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+            padding: 5px 15px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-right: 10px;
-            transition: background-color 0.3s;
+            font-size: 0.9rem;
         }
-        button:hover {
-            background-color: #45a049;
+        
+        .clear-all:hover {
+            filter: brightness(1.1);
         }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+        
+        /* Controls */
+        .controls {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
         }
-        select, input {
-            padding: 8px;
-            margin: 5px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
+        
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
         }
-        .progress-container {
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .stack-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
             width: 100%;
+            margin-top: 20px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        
+        .stack-btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+        
+        .stack-btn:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
             margin: 20px 0;
             display: none;
         }
-        .progress-bar {
+        
+        .progress-status {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .progress-text {
+            font-weight: 500;
+        }
+        
+        .progress-percentage {
+            color: var(--accent-color);
+        }
+        
+        .progress-bar-container {
             height: 10px;
-            background-color: #4CAF50;
-            width: 0%;
+            background-color: var(--progress-bg);
             border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: var(--progress-bar);
+            width: 0%;
             transition: width 0.3s;
         }
-        canvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 20px auto;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
+        
+        /* Result */
         .result-container {
             display: none;
+        }
+        
+        .preview-canvas-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
             margin: 20px 0;
         }
-        #downloadContainer {
+        
+        #previewCanvas {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+        }
+        
+        .image-info {
+            background-color: var(--drop-area-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .image-info-item {
+            padding: 8px 16px;
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid var(--border-color);
+        }
+        
+        .download-container {
             margin: 20px 0;
             text-align: center;
         }
-        #downloadBtn {
-            background-color: #2196F3;
+        
+        .download-btn {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.2s, background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        #downloadBtn:hover {
-            background-color: #0b7dda;
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
         }
-        .info-box {
-            background-color: #e9f7fe;
-            border: 1px solid #2196F3;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-        .resolution-settings {
-            margin: 15px 0;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
-        }
-        /* For debug */
+        
+        /* Other Utilities */
         .debug-info {
             font-family: monospace;
-            background: #f0f0f0;
+            font-size: 0.8rem;
+            background-color: var(--drop-area-bg);
             padding: 10px;
-            border-radius: 4px;
+            border-radius: 8px;
             margin-top: 20px;
             height: 100px;
             overflow: auto;
-        }
-        /* File support info */
-        .file-support {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-        /* Processing indicator */
-        .processing {
-            margin: 10px 0;
-            color: #2196F3;
-            font-weight: bold;
+            border: 1px solid var(--border-color);
             display: none;
+        }
+        
+        .processing-indicator {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+            text-align: center;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--card-bg) transparent transparent transparent;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .preview-container {
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .stack-btn, .download-btn {
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+        }
+        
+        .memory-usage {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: var(--card-bg);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            display: none;
+        }
+        
+        .batch-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .batch-indicator-dots {
+            display: flex;
+            gap: 3px;
+        }
+        
+        .batch-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+        }
+        
+        .batch-dot.active {
+            background-color: var(--accent-color);
+        }
+        
+        /* Loading spinner for actions */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Image quality settings */
+        .quality-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .quality-option {
+            background-color: var(--drop-area-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quality-option:hover {
+            border-color: var(--accent-color);
+        }
+        
+        .quality-option.selected {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+        
+        .quality-option span {
+            display: block;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>High-Resolution Image Stacker</h1>
-        
-        <div class="info-box">
-            <p><strong>⚡ Supports up to 1500 megapixels</strong> - This tool can handle extremely large images by using advanced tiling techniques.</p>
-            <p><strong>📱 iOS/Apple Support:</strong> HEIC files from iPhones and other Apple devices are now supported!</p>
-        </div>
-        
-        <div class="drop-area" id="dropArea">
-            <p>Drag & drop images here or</p>
-            <input type="file" id="fileInput" accept="image/*,.heic,.HEIC" multiple>
-            <button id="selectFilesBtn">Select Images</button>
-            <p class="file-support">Supported formats: JPG, PNG, GIF, WEBP, TIFF, BMP, HEIC and more</p>
-            <p><small>You can upload up to 50 images</small></p>
-        </div>
-        
-        <div class="processing" id="processingIndicator">Converting HEIC file... Please wait.</div>
-        <div class="debug-info" id="debugInfo"></div>
+    <div class="theme-toggle" id="themeToggle">
+        <!-- Moon icon for dark mode -->
+        <svg id="darkIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        <!-- Sun icon for light mode -->
+        <svg id="lightIcon" style="display:none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+    </div>
 
-        <div class="preview-container" id="previewContainer"></div>
-        
-        <div class="controls">
-            <h3>Stacking Options</h3>
-            <div>
-                <label for="blendMode">Blend Mode:</label>
-                <select id="blendMode">
-                    <option value="normal">Normal</option>
-                    <option value="lighten">Lighten</option>
-                    <option value="darken">Darken</option>
-                    <option value="multiply">Multiply</option>
-                    <option value="screen">Screen</option>
-                    <option value="overlay">Overlay</option>
-                    <option value="color-dodge">Color Dodge</option>
-                    <option value="color-burn">Color Burn</option>
-                    <option value="difference">Difference</option>
-                    <option value="exclusion">Exclusion</option>
-                    <option value="luminosity">Luminosity</option>
-                </select>
-            </div>
-            <div>
-                <label for="opacity">Opacity:</label>
-                <input type="range" id="opacity" min="0" max="100" value="100">
-                <span id="opacityValue">100%</span>
-            </div>
-            <div>
-                <label for="alignment">Alignment:</label>
-                <select id="alignment">
-                    <option value="center">Center</option>
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right">Bottom Right</option>
-                </select>
+    <div class="container">
+        <div class="card">
+            <h1>Advanced Image Stacker</h1>
+            
+            <div class="drop-area" id="dropArea">
+                <h3>Add Your Images</h3>
+                <p>Drag & drop images here or</p>
+                <div class="file-input-container">
+                    <label for="fileInput" class="file-input-label">Select Images</label>
+                    <input type="file" id="fileInput" accept="image/*,.heic,.HEIC" multiple>
+                </div>
+                <p class="supported-formats">Supports JPG, PNG, HEIC (iPhone), WEBP, and other formats</p>
+                <p><small>Optimized to handle 120+ images at once</small></p>
             </div>
             
-            <div class="resolution-settings">
-                <h4>Output Resolution</h4>
-                <div>
-                    <label for="outputWidth">Width (pixels):</label>
-                    <input type="number" id="outputWidth" min="100" max="100000" value="3000">
+            <div class="processing-indicator" id="processingIndicator">
+                Converting HEIC files... Please wait
+            </div>
+            
+            <div class="image-count">
+                <span id="imageCounter" class="image-count-number">0 Images</span>
+                <button id="clearAllBtn" class="clear-all" disabled>Clear All</button>
+            </div>
+            
+            <div class="preview-container" id="previewContainer"></div>
+            
+            <div class="controls">
+                <h3>Stacking Options</h3>
+                
+                <div class="control-group">
+                    <label>Output Quality:</label>
+                    <div class="quality-settings">
+                        <div class="quality-option selected" data-quality="standard">
+                            Standard
+                            <span>Faster processing</span>
+                        </div>
+                        <div class="quality-option" data-quality="high">
+                            High Quality
+                            <span>Better results, slower</span>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label for="outputHeight">Height (pixels):</label>
-                    <input type="number" id="outputHeight" min="100" max="100000" value="2000">
-                </div>
-                <div>
+                
+                <div class="control-group">
                     <label for="maintainOriginalSize">
                         <input type="checkbox" id="maintainOriginalSize" checked>
-                        Maintain original resolution (can be very large)
+                        Preserve original resolution
                     </label>
+                    <div class="tooltip">ⓘ
+                        <span class="tooltip-text">Uses the largest image dimensions as the output size</span>
+                    </div>
                 </div>
-                <div>
-                    <p>Megapixels: <span id="megapixelCount">6.0</span></p>
+                
+                <button id="stackBtn" class="stack-btn" disabled>Stack Images</button>
+            </div>
+            
+            <div class="batch-indicator" id="batchIndicator" style="display: none;">
+                <span>Processing batches:</span>
+                <div class="batch-indicator-dots" id="batchDots"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-status">
+                    <span class="progress-text" id="progressText">Processing images...</span>
+                    <span class="progress-percentage" id="progressPercentage">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
                 </div>
             </div>
             
-            <button id="stackBtn" disabled>Stack Images</button>
-        </div>
-        
-        <div class="progress-container" id="progressContainer">
-            <p>Processing: <span id="progressText">0%</span></p>
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
-        
-        <div class="result-container" id="resultContainer">
-            <h3>Stacked Image Preview</h3>
-            <p>Preview (downscaled for display):</p>
-            <canvas id="previewCanvas"></canvas>
-            <div id="imageInfo">
-                <p>Output dimensions: <span id="outputDimensions"></span></p>
-                <p>Output megapixels: <span id="outputMegapixels"></span></p>
-            </div>
-            <div id="downloadContainer">
-                <button id="downloadBtn">Download Stacked Image</button>
+            <div class="result-container" id="resultContainer">
+                <h2>Stacked Image Result</h2>
+                
+                <div class="preview-canvas-container">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+                
+                <div class="image-info">
+                    <div class="image-info-item">
+                        Dimensions: <span id="outputDimensions">3000 × 2000</span>
+                    </div>
+                    <div class="image-info-item">
+                        Size: <span id="outputMegapixels">6.0 MP</span>
+                    </div>
+                    <div class="image-info-item">
+                        Images Stacked: <span id="stackedCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="download-container">
+                    <button id="downloadBtn" class="download-btn">
+                        Download Stacked Image
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+    
+    <div class="debug-info" id="debugInfo"></div>
+    <div class="memory-usage" id="memoryUsage"></div>
 
     <script>
-        // Variables to store images and settings
-        const maxImages = 50;
+        // Constants and global variables
+        const MAX_IMAGES = 150;  // Increased from 50 to 150
+        const TILE_SIZE = 4096;  // Optimized tile size for better performance
+        const BATCH_SIZE = 10;   // Process images in batches of 10
+        
         let uploadedImages = [];
         let stackedCanvas = null;
         let fullResolutionData = null;
-        let tileSize = 8192; // Size of each tile (adjust based on browser capabilities)
+        let isProcessing = false;
+        let selectedQuality = 'standard';
         
-        // DOM elements
+        // DOM Elements
+        const themeToggle = document.getElementById('themeToggle');
+        const darkIcon = document.getElementById('darkIcon');
+        const lightIcon = document.getElementById('lightIcon');
         const dropArea = document.getElementById('dropArea');
         const fileInput = document.getElementById('fileInput');
-        const selectFilesBtn = document.getElementById('selectFilesBtn');
         const previewContainer = document.getElementById('previewContainer');
         const stackBtn = document.getElementById('stackBtn');
-        const blendModeSelect = document.getElementById('blendMode');
-        const opacitySlider = document.getElementById('opacity');
-        const opacityValue = document.getElementById('opacityValue');
-        const alignmentSelect = document.getElementById('alignment');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
+        const progressPercentage = document.getElementById('progressPercentage');
         const resultContainer = document.getElementById('resultContainer');
         const previewCanvas = document.getElementById('previewCanvas');
         const downloadBtn = document.getElementById('downloadBtn');
-        const outputWidth = document.getElementById('outputWidth');
-        const outputHeight = document.getElementById('outputHeight');
         const maintainOriginalSize = document.getElementById('maintainOriginalSize');
-        const megapixelCount = document.getElementById('megapixelCount');
         const outputDimensions = document.getElementById('outputDimensions');
         const outputMegapixels = document.getElementById('outputMegapixels');
+        const stackedCount = document.getElementById('stackedCount');
         const debugInfo = document.getElementById('debugInfo');
         const processingIndicator = document.getElementById('processingIndicator');
+        const imageCounter = document.getElementById('imageCounter');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const memoryUsage = document.getElementById('memoryUsage');
+        const batchIndicator = document.getElementById('batchIndicator');
+        const batchDots = document.getElementById('batchDots');
+        const qualityOptions = document.querySelectorAll('.quality-option');
         
-        // Debug function
+        // Helper functions
         function debug(message) {
             console.log(message);
             debugInfo.style.display = 'block';
             debugInfo.textContent += message + '\n';
-            // Auto-scroll to bottom
             debugInfo.scrollTop = debugInfo.scrollHeight;
         }
         
-        // Check if heic2any library is available
-        const heicSupported = typeof heic2any !== 'undefined';
-        if (!heicSupported) {
-            debug("Warning: HEIC support library not loaded. HEIC files may not work correctly.");
-        } else {
-            debug("HEIC support enabled.");
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+            return (bytes / 1073741824).toFixed(1) + ' GB';
         }
         
-        // Update megapixel count on resolution change
-        function updateMegapixelCount() {
-            const width = parseInt(outputWidth.value);
-            const height = parseInt(outputHeight.value);
-            const mp = (width * height / 1000000).toFixed(1);
-            megapixelCount.textContent = mp;
+        function updateMemoryUsage() {
+            if (window.performance && window.performance.memory) {
+                const memory = window.performance.memory;
+                memoryUsage.style.display = 'block';
+                memoryUsage.textContent = `Memory: ${formatFileSize(memory.usedJSHeapSize)} / ${formatFileSize(memory.jsHeapSizeLimit)}`;
+            }
+        }
+
+                // Update image counter
+                function updateImageCounter() {
+            imageCounter.textContent = `${uploadedImages.length} Image${uploadedImages.length !== 1 ? 's' : ''}`;
+            clearAllBtn.disabled = uploadedImages.length === 0;
+            stackBtn.disabled = uploadedImages.length === 0;
         }
         
-        outputWidth.addEventListener('input', updateMegapixelCount);
-        outputHeight.addEventListener('input', updateMegapixelCount);
-        maintainOriginalSize.addEventListener('change', function() {
-            outputWidth.disabled = this.checked;
-            outputHeight.disabled = this.checked;
+        // Theme Toggle
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            
+            // Update theme icon
+            if (newTheme === 'dark') {
+                darkIcon.style.display = 'block';
+                lightIcon.style.display = 'none';
+            } else {
+                darkIcon.style.display = 'none';
+                lightIcon.style.display = 'block';
+            }
+            
+            // Save preference to localStorage
+            localStorage.setItem('theme', newTheme);
         });
         
-        // Initialize with default values
-        updateMegapixelCount();
-        
-        // Event listeners for drag and drop
+        // Drag and drop event handlers
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
         });
-        
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
         
         ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, highlight, false);
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.add('highlight');
+            }, false);
         });
         
         ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, unhighlight, false);
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.remove('highlight');
+            }, false);
         });
         
-        function highlight() {
-            dropArea.classList.add('highlight');
-        }
-        
-        function unhighlight() {
-            dropArea.classList.remove('highlight');
-        }
-        
-        // Make the entire drop area clickable to open file picker
-        dropArea.addEventListener('click', function(e) {
-            // Prevent click if the target is the select button (it has its own handler)
-            if (e.target !== selectFilesBtn) {
-                fileInput.click();
-            }
-        });
-        
-        // Also make the select button work correctly
-        selectFilesBtn.addEventListener('click', function(e) {
-            e.stopPropagation(); // Prevent triggering the dropArea click
-            fileInput.click();
-        });
-        
-        // Handle file drop
-        dropArea.addEventListener('drop', function(e) {
+        dropArea.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
-            if (dt.files && dt.files.length > 0) {
-                handleFiles(dt.files);
+            const files = dt.files;
+            
+            if (files && files.length > 0) {
+                handleFiles(files);
             }
-        });
+        }, false);
         
-        // Handle file input change
+        // File input change handler
         fileInput.addEventListener('change', function() {
             if (this.files && this.files.length > 0) {
                 handleFiles(this.files);
-                debug(`Selected ${this.files.length} files`);
             }
+        });
+        
+        // Quality option selection
+        qualityOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selection from all options
+                qualityOptions.forEach(opt => opt.classList.remove('selected'));
+                
+                // Add selection to clicked option
+                this.classList.add('selected');
+                
+                // Store selected quality
+                selectedQuality = this.getAttribute('data-quality');
+                debug(`Quality set to: ${selectedQuality}`);
+            });
         });
         
         // Process uploaded files
         function handleFiles(files) {
-            if (files.length === 0) return;
+            if (files.length === 0 || isProcessing) return;
             
             debug(`Processing ${files.length} files`);
             
-            if (uploadedImages.length + files.length > maxImages) {
-                alert(`You can only upload up to ${maxImages} images. Only the first ${maxImages - uploadedImages.length} will be added.`);
-                files = Array.from(files).slice(0, maxImages - uploadedImages.length);
+            // Check if we're exceeding the max image count
+            if (uploadedImages.length + files.length > MAX_IMAGES) {
+                alert(`You can only process up to ${MAX_IMAGES} images at once. Only the first ${MAX_IMAGES - uploadedImages.length} will be added.`);
+                files = Array.from(files).slice(0, MAX_IMAGES - uploadedImages.length);
             }
             
-            Array.from(files).forEach(file => {
-                processFile(file);
+            // Process files in batches to avoid memory issues
+            const filesToProcess = Array.from(files);
+            processBatch(filesToProcess, 0);
+        }
+        
+        // Process files in batches
+        function processBatch(files, startIndex) {
+            const endIndex = Math.min(startIndex + BATCH_SIZE, files.length);
+            const currentBatch = files.slice(startIndex, endIndex);
+            
+            let processed = 0;
+            let heicFilesInBatch = currentBatch.filter(f => isHeicFile(f)).length;
+            
+            // Show processing indicator if there are HEIC files
+            if (heicFilesInBatch > 0) {
+                processingIndicator.style.display = 'block';
+                processingIndicator.textContent = `Converting ${heicFilesInBatch} HEIC file${heicFilesInBatch !== 1 ? 's' : ''}... Please wait`;
+            }
+            
+            // Update batch indicator
+            updateBatchIndicator(Math.ceil(files.length / BATCH_SIZE), Math.ceil(startIndex / BATCH_SIZE) + 1);
+            
+            // Process each file in the current batch
+            currentBatch.forEach(file => {
+                processFile(file, () => {
+                    processed++;
+                    
+                    // Check if batch is complete
+                    if (processed === currentBatch.length) {
+                        processingIndicator.style.display = 'none';
+                        
+                        // Process next batch if available
+                        if (endIndex < files.length) {
+                            // Short delay before processing next batch to free up memory
+                            setTimeout(() => {
+                                processBatch(files, endIndex);
+                            }, 200);
+                        } else {
+                            // All batches complete
+                            batchIndicator.style.display = 'none';
+                            debug(`All ${files.length} files processed successfully`);
+                        }
+                    }
+                });
             });
         }
         
-        // Process a single file, handling HEIC conversion if needed
-        function processFile(file) {
-            // Check if file is HEIC format
-            const isHeic = file.name.toLowerCase().endsWith('.heic') || 
-                         file.type === 'image/heic' || 
-                         file.type === 'image/heif';
+        // Update batch processing indicator
+        function updateBatchIndicator(totalBatches, currentBatch) {
+            if (totalBatches <= 1) {
+                batchIndicator.style.display = 'none';
+                return;
+            }
             
-            if (isHeic) {
+            batchIndicator.style.display = 'flex';
+            batchDots.innerHTML = '';
+            
+            for (let i = 0; i < totalBatches; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'batch-dot' + (i < currentBatch ? ' active' : '');
+                batchDots.appendChild(dot);
+            }
+        }
+        
+        // Process a single file, handling HEIC conversion if needed
+        function processFile(file, callback) {
+            // Check if file is HEIC format
+            if (isHeicFile(file)) {
                 debug(`Processing HEIC file: ${file.name}`);
-                
-                // Show processing indicator
-                processingIndicator.style.display = 'block';
-                
-                if (typeof heic2any === 'undefined') {
-                    alert(`HEIC support requires the heic2any library which appears to be missing. File: ${file.name}`);
-                    processingIndicator.style.display = 'none';
-                    return;
-                }
                 
                 // Convert HEIC to JPEG using heic2any library
                 heic2any({
                     blob: file,
                     toType: 'image/jpeg',
-                    quality: 0.9
+                    quality: selectedQuality === 'high' ? 0.95 : 0.9
                 })
                 .then(convertedBlob => {
                     debug(`HEIC conversion successful: ${file.name}`);
@@ -440,62 +954,65 @@
                     // Create a new file object with the converted blob
                     const convertedFile = new File(
                         [convertedBlob], 
-                        file.name.replace('.heic', '.jpg').replace('.HEIC', '.jpg'), 
+                        file.name.replace(/\.heic$/i, '.jpg'), 
                         { type: 'image/jpeg' }
                     );
                     
                     // Process the converted file
-                    processImageFile(convertedFile);
-                    processingIndicator.style.display = 'none';
+                    processImageFile(convertedFile, callback);
                 })
                 .catch(err => {
                     debug(`HEIC conversion error for ${file.name}: ${err.message}`);
                     alert(`Failed to convert HEIC file: ${file.name}. Error: ${err.message}`);
-                    processingIndicator.style.display = 'none';
+                    callback();
                 });
             } else if (file.type.match('image.*')) {
-                processImageFile(file);
+                processImageFile(file, callback);
             } else {
                 debug(`Skipped non-image file: ${file.name} (${file.type})`);
-                alert(`"${file.name}" is not a valid image file.`);
+                callback();
             }
         }
         
+        // Check if a file is a HEIC file
+        function isHeicFile(file) {
+            return file.name.toLowerCase().endsWith('.heic') || 
+                   file.type === 'image/heic' || 
+                   file.type === 'image/heif';
+        }
+        
         // Process a regular image file or converted HEIC file
-        function processImageFile(file) {
-            const reader = new FileReader();
+        function processImageFile(file, callback) {
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
             
-            reader.onload = function(e) {
-                const img = new Image();
+            img.onload = function() {
+                debug(`Loaded image: ${file.name} (${img.width}x${img.height})`);
                 
-                img.onload = function() {
-                    debug(`Loaded image: ${file.name} (${img.width}x${img.height})`);
-                    
-                    uploadedImages.push({
-                        element: img,
-                        file: file,
-                        width: img.width,
-                        height: img.height
-                    });
-                    
-                    createPreviewElement(img, uploadedImages.length - 1);
-                    updateStackButton();
-                };
+                uploadedImages.push({
+                    element: img,
+                    file: file,
+                    width: img.width,
+                    height: img.height,
+                    url: objectUrl
+                });
                 
-                img.onerror = function() {
-                    debug(`Error loading image: ${file.name}`);
-                    alert(`Error loading image: ${file.name}`);
-                };
+                createPreviewElement(img, uploadedImages.length - 1);
+                updateImageCounter();
                 
-                img.src = e.target.result;
+                // Run callback
+                if (callback) callback();
             };
             
-            reader.onerror = function() {
-                debug(`Error reading file: ${file.name}`);
-                alert(`Error reading file: ${file.name}`);
+            img.onerror = function() {
+                debug(`Error loading image: ${file.name}`);
+                URL.revokeObjectURL(objectUrl);
+                
+                // Run callback even on error
+                if (callback) callback();
             };
             
-            reader.readAsDataURL(file);
+            img.src = objectUrl;
         }
         
         // Create preview element for each image
@@ -503,7 +1020,6 @@
             const previewDiv = document.createElement('div');
             previewDiv.className = 'image-preview';
             previewDiv.dataset.index = index;
-            previewDiv.setAttribute('draggable', 'true');
             
             const imgElement = document.createElement('img');
             imgElement.src = img.src;
@@ -513,7 +1029,19 @@
             removeBtn.textContent = '×';
             removeBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                
+                // Get the image that's being removed
+                const removedImage = uploadedImages[index];
+                
+                // Revoke the object URL to free memory
+                if (removedImage && removedImage.url) {
+                    URL.revokeObjectURL(removedImage.url);
+                }
+                
+                // Remove from array
                 uploadedImages.splice(index, 1);
+                
+                // Remove from DOM
                 previewContainer.removeChild(previewDiv);
                 
                 // Update all indices
@@ -522,83 +1050,38 @@
                     preview.dataset.index = i;
                 });
                 
-                updateStackButton();
+                updateImageCounter();
+                updateMemoryUsage();
             });
             
             previewDiv.appendChild(imgElement);
             previewDiv.appendChild(removeBtn);
             previewContainer.appendChild(previewDiv);
             
-            // Set up drag and drop for reordering
-            previewDiv.addEventListener('dragstart', function(e) {
-                e.dataTransfer.setData('text/plain', index);
-                setTimeout(() => this.classList.add('dragging'), 0);
-            });
+            // Update memory usage info
+            updateMemoryUsage();
+        }
+        
+        // Clear all button handler
+        clearAllBtn.addEventListener('click', function() {
+            if (uploadedImages.length === 0) return;
             
-            previewDiv.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('drag-over');
-            });
-            
-            previewDiv.addEventListener('dragleave', function() {
-                this.classList.remove('drag-over');
-            });
-            
-            previewDiv.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('drag-over');
-                const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                const destIndex = parseInt(this.dataset.index);
-                
-                if (srcIndex !== destIndex) {
-                    // Reorder the images array
-                    const temp = uploadedImages[srcIndex];
-                    
-                    if (srcIndex < destIndex) {
-                        // Moving forward
-                        for (let i = srcIndex; i < destIndex; i++) {
-                            uploadedImages[i] = uploadedImages[i + 1];
-                        }
-                    } else {
-                        // Moving backward
-                        for (let i = srcIndex; i > destIndex; i--) {
-                            uploadedImages[i] = uploadedImages[i - 1];
-                        }
-                    }
-                    
-                    uploadedImages[destIndex] = temp;
-                    
-                    // Refresh the preview display
-                    while (previewContainer.firstChild) {
-                        previewContainer.removeChild(previewContainer.firstChild);
-                    }
-                    
-                    uploadedImages.forEach((img, idx) => {
-                        createPreviewElement(img.element, idx);
-                    });
-                }
-            });
-            
-            previewDiv.addEventListener('dragend', function() {
-                this.classList.remove('dragging');
-                document.querySelectorAll('.image-preview').forEach(preview => {
-                    preview.classList.remove('drag-over');
+            if (confirm('Are you sure you want to remove all images?')) {
+                // Revoke all object URLs to free memory
+                uploadedImages.forEach(img => {
+                    if (img.url) URL.revokeObjectURL(img.url);
                 });
-            });
-        }
-        
-        // Update stack button state
-        function updateStackButton() {
-            stackBtn.disabled = uploadedImages.length < 1;
-        }
-        
-        // Handle opacity slider change
-        opacitySlider.addEventListener('input', function() {
-            opacityValue.textContent = this.value + '%';
+                
+                uploadedImages = [];
+                while (previewContainer.firstChild) {
+                    previewContainer.removeChild(previewContainer.firstChild);
+                }
+                
+                updateImageCounter();
+                updateMemoryUsage();
+                debug('All images cleared');
+            }
         });
-        
-        // Stack images when button is clicked
-        stackBtn.addEventListener('click', stackImages);
         
         // Helper function to get the maximum dimensions of all uploaded images
         function getMaxDimensions() {
@@ -615,254 +1098,237 @@
             return { width: maxWidth, height: maxHeight };
         }
         
-        // High resolution image stacking function
-        function stackImages() {
-            if (uploadedImages.length === 0) return;
+        // Stack images when button is clicked
+        stackBtn.addEventListener('click', function() {
+            if (uploadedImages.length === 0 || isProcessing) return;
             
+            isProcessing = true;
             progressContainer.style.display = 'block';
             resultContainer.style.display = 'none';
+            stackBtn.disabled = true;
+            
+            // Force garbage collection if available (Chrome)
+            if (window.gc) window.gc();
             
             // Determine output dimensions
             let outputDims;
             if (maintainOriginalSize.checked) {
                 outputDims = getMaxDimensions();
             } else {
-                outputDims = {
-                    width: parseInt(outputWidth.value),
-                    height: parseInt(outputHeight.value)
-                };
+                // Default to 4K resolution if original size not maintained
+                outputDims = { width: 3840, height: 2160 };
             }
             
             // Check if dimensions are viable
-            const MAX_DIMENSION = 32000; // Most browsers can handle this
+            const MAX_DIMENSION = 16384; // Most browsers can safely handle this
             const megapixels = (outputDims.width * outputDims.height) / 1000000;
             
             // Update info display
             outputDimensions.textContent = `${outputDims.width} × ${outputDims.height} pixels`;
             outputMegapixels.textContent = `${megapixels.toFixed(1)} MP`;
+            stackedCount.textContent = uploadedImages.length;
             
-            if (outputDims.width > MAX_DIMENSION || outputDims.height > MAX_DIMENSION || megapixels > 1500) {
-                // We need to use tiling for extremely large images
+            if (outputDims.width > MAX_DIMENSION || outputDims.height > MAX_DIMENSION || megapixels > 500) {
+                // Use tiling for extremely large images
+                debug(`Using tiled approach for large image: ${outputDims.width}x${outputDims.height} (${megapixels.toFixed(1)} MP)`);
                 stackImagesWithTiling(outputDims);
             } else {
-                // We can use regular canvas for smaller images
+                // Use regular canvas for smaller images
+                debug(`Using standard approach for image: ${outputDims.width}x${outputDims.height} (${megapixels.toFixed(1)} MP)`);
                 stackImagesDirectly(outputDims);
             }
-        }
+        });
         
         // Standard stacking for images within browser limits
         function stackImagesDirectly(outputDims) {
+            // Create the output canvas
             const canvas = document.createElement('canvas');
             canvas.width = outputDims.width;
             canvas.height = outputDims.height;
             const ctx = canvas.getContext('2d');
             
             // Get selected options
-            const blendMode = blendModeSelect.value;
-            const opacity = opacitySlider.value / 100;
-            const alignment = alignmentSelect.value;
+            const highQuality = selectedQuality === 'high';
             
-            // Stack images one by one
+            // We'll process images in batches to avoid memory issues
+            const totalImages = uploadedImages.length;
+            const batchSize = highQuality ? 5 : 10; // Smaller batches for high quality
+            const totalBatches = Math.ceil(totalImages / batchSize);
+            
+            let currentBatch = 0;
             let processed = 0;
             
-            function processNextImage() {
-                if (processed < uploadedImages.length) {
-                    const img = uploadedImages[processed].element;
+            // Process images in batches
+            function processNextBatch() {
+                if (currentBatch >= totalBatches) {
+                    // All batches processed
+                    finishStacking(canvas);
+                    return;
+                }
+                
+                const start = currentBatch * batchSize;
+                const end = Math.min(start + batchSize, totalImages);
+                
+                debug(`Processing batch ${currentBatch + 1}/${totalBatches} (images ${start + 1}-${end})`);
+                
+                // Process each image in the current batch
+                for (let i = start; i < end; i++) {
+                    const img = uploadedImages[i].element;
                     
-                    // Calculate position based on alignment
-                    let x = 0, y = 0;
+                    // Calculate position to center the image
+                    const x = (outputDims.width - img.width) / 2;
+                    const y = (outputDims.height - img.height) / 2;
                     
-                    switch(alignment) {
-                        case 'center':
-                            x = (outputDims.width - img.width) / 2;
-                            y = (outputDims.height - img.height) / 2;
-                            break;
-                        case 'top-left':
-                            x = 0;
-                            y = 0;
-                            break;
-                        case 'top-right':
-                            x = outputDims.width - img.width;
-                            y = 0;
-                            break;
-                        case 'bottom-left':
-                            x = 0;
-                            y = outputDims.height - img.height;
-                            break;
-                        case 'bottom-right':
-                            x = outputDims.width - img.width;
-                            y = outputDims.height - img.height;
-                            break;
-                    }
-                    
-                    // Apply blend mode and opacity
-                    ctx.globalCompositeOperation = blendMode === 'normal' ? 'source-over' : blendMode;
-                    ctx.globalAlpha = opacity;
-                    
-                    // Draw the image, scaling if needed
-                    if (maintainOriginalSize.checked) {
-                        ctx.drawImage(img, x, y);
-                    } else {
-                        // Scale the image to fit the output dimensions while maintaining aspect ratio
-                        const scale = Math.min(
-                            outputDims.width / img.width,
-                            outputDims.height / img.height
-                        );
+                                        // Draw with high quality settings if selected
+                                        if (highQuality) {
+                        // Use better quality settings
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
                         
-                        const scaledWidth = img.width * scale;
-                        const scaledHeight = img.height * scale;
-                        
-                        // Recalculate position based on alignment
-                        switch(alignment) {
-                            case 'center':
-                                x = (outputDims.width - scaledWidth) / 2;
-                                y = (outputDims.height - scaledHeight) / 2;
-                                break;
-                            case 'top-left':
-                                x = 0;
-                                y = 0;
-                                break;
-                            case 'top-right':
-                                x = outputDims.width - scaledWidth;
-                                y = 0;
-                                break;
-                            case 'bottom-left':
-                                x = 0;
-                                y = outputDims.height - scaledHeight;
-                                break;
-                            case 'bottom-right':
-                                x = outputDims.width - scaledWidth;
-                                y = outputDims.height - scaledHeight;
-                                break;
+                        // For first image, draw opaque
+                        if (i === 0) {
+                            ctx.globalAlpha = 1.0;
+                        } else {
+                            // For subsequent images, use adaptive blending
+                            // This makes stacked images more visible with better contrast
+                            ctx.globalAlpha = Math.min(1.0, 1.0 / (i + 1) + 0.20);
                         }
                         
-                        ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                        // Draw the image
+                        ctx.drawImage(img, x, y);
+                    } else {
+                        // Standard quality mode - simpler blending
+                        if (i === 0) {
+                            ctx.globalAlpha = 1.0;
+                        } else {
+                            // Simple opacity reduction for subsequent images
+                            ctx.globalAlpha = 1.0 / (i + 1);
+                        }
+                        
+                        ctx.drawImage(img, x, y);
                     }
                     
                     // Update progress
                     processed++;
-                    const progress = Math.round((processed / uploadedImages.length) * 100);
+                    const progress = Math.round((processed / totalImages) * 100);
                     progressBar.style.width = `${progress}%`;
-                    progressText.textContent = `${progress}%`;
-                    
-                    // Process next image or finish
-                    setTimeout(processNextImage, 0);
-                } else {
-                    // All images processed
-                    stackedCanvas = canvas;
-                    finishStacking(canvas);
+                    progressText.textContent = `Processing images (${processed}/${totalImages})`;
+                    progressPercentage.textContent = `${progress}%`;
                 }
+                
+                // Schedule next batch with a small delay to allow for UI updates
+                // and potential garbage collection
+                setTimeout(() => {
+                    currentBatch++;
+                    processNextBatch();
+                }, 50);
             }
             
-            // Start processing
-            processNextImage();
+            // Start batch processing
+            processNextBatch();
         }
         
-        // Tiling approach for extremely large images (beyond browser limits)
+        // Tiled approach for extremely large images that exceed browser limits
         function stackImagesWithTiling(outputDims) {
-            // Create full resolution data object
-            fullResolutionData = {
-                width: outputDims.width,
-                height: outputDims.height,
-                tiles: [],
-                tileSize: tileSize
-            };
+            debug("Using tiled processing for large image output");
             
+            // Set up tiling parameters
+            const tileSize = TILE_SIZE;
             const totalTilesX = Math.ceil(outputDims.width / tileSize);
             const totalTilesY = Math.ceil(outputDims.height / tileSize);
             const totalTiles = totalTilesX * totalTilesY;
             
-            // Initialize progress tracking
-            let tilesProcessed = 0;
+            // Data structure to hold the full-resolution output
+            fullResolutionData = {
+                width: outputDims.width,
+                height: outputDims.height,
+                tileSize: tileSize,
+                totalTilesX: totalTilesX,
+                totalTilesY: totalTilesY,
+                tiles: []
+            };
             
-            // Get selected options
-            const blendMode = blendModeSelect.value;
-            const opacity = opacitySlider.value / 100;
-            const alignment = alignmentSelect.value;
+            // Track progress
+            let tilesProcessed = 0;
             
             // Process each tile
             function processTile(tileX, tileY) {
-                const tileWidth = Math.min(tileSize, outputDims.width - tileX * tileSize);
-                const tileHeight = Math.min(tileSize, outputDims.height - tileY * tileSize);
+                // Determine tile dimensions - handle edge tiles that might be smaller
+                const tileWidth = (tileX === totalTilesX - 1) 
+                    ? outputDims.width - (tileSize * tileX) 
+                    : tileSize;
+                    
+                const tileHeight = (tileY === totalTilesY - 1) 
+                    ? outputDims.height - (tileSize * tileY) 
+                    : tileSize;
                 
+                debug(`Processing tile ${tileX},${tileY} (${tileWidth}x${tileHeight})`);
+                
+                // Create a canvas for this tile
                 const canvas = document.createElement('canvas');
                 canvas.width = tileWidth;
                 canvas.height = tileHeight;
                 const ctx = canvas.getContext('2d');
                 
-                // Process each image for this tile
+                // Get selected options
+                const highQuality = selectedQuality === 'high';
+                
+                // Process images one by one for this tile
                 let imageIndex = 0;
                 
                 function processImageForTile() {
                     if (imageIndex < uploadedImages.length) {
                         const img = uploadedImages[imageIndex].element;
                         
-                        // Calculate position based on alignment
-                        let baseX = 0, baseY = 0;
+                        // Calculate position to center the image in the overall output
+                        const imgX = (outputDims.width - img.width) / 2;
+                        const imgY = (outputDims.height - img.height) / 2;
                         
-                        switch(alignment) {
-                            case 'center':
-                                baseX = (outputDims.width - img.width) / 2;
-                                baseY = (outputDims.height - img.height) / 2;
-                                break;
-                            case 'top-left':
-                                baseX = 0;
-                                baseY = 0;
-                                break;
-                            case 'top-right':
-                                baseX = outputDims.width - img.width;
-                                baseY = 0;
-                                break;
-                            case 'bottom-left':
-                                baseX = 0;
-                                baseY = outputDims.height - img.height;
-                                break;
-                            case 'bottom-right':
-                                baseX = outputDims.width - img.width;
-                                baseY = outputDims.height - img.height;
-                                break;
-                        }
-                        
-                        // Calculate the portion of this image that overlaps with the current tile
+                        // Calculate if this image intersects with the current tile
                         const tileLeft = tileX * tileSize;
                         const tileTop = tileY * tileSize;
                         const tileRight = tileLeft + tileWidth;
                         const tileBottom = tileTop + tileHeight;
                         
-                        const imgLeft = baseX;
-                        const imgTop = baseY;
-                        const imgRight = imgLeft + img.width;
-                        const imgBottom = imgTop + img.height;
+                        const imgRight = imgX + img.width;
+                        const imgBottom = imgY + img.height;
                         
-                        // Check if image overlaps with the tile
-                        if (imgRight > tileLeft && imgLeft < tileRight && imgBottom > tileTop && imgTop < tileBottom) {
+                        // Check if the image overlaps with this tile
+                        if (imgX < tileRight && imgRight > tileLeft && imgY < tileBottom && imgBottom > tileTop) {
                             // Calculate the overlapping region
-                            const overlapLeft = Math.max(tileLeft, imgLeft);
-                            const overlapTop = Math.max(tileTop, imgTop);
+                            const overlapLeft = Math.max(tileLeft, imgX);
+                            const overlapTop = Math.max(tileTop, imgY);
                             const overlapRight = Math.min(tileRight, imgRight);
                             const overlapBottom = Math.min(tileBottom, imgBottom);
                             
-                            // Calculate source and destination coordinates
-                            const srcX = overlapLeft - imgLeft;
-                            const srcY = overlapTop - imgTop;
-                            const srcWidth = overlapRight - overlapLeft;
-                            const srcHeight = overlapBottom - overlapTop;
+                            // Calculate dimensions
+                            const overlapWidth = overlapRight - overlapLeft;
+                            const overlapHeight = overlapBottom - overlapTop;
                             
-                            const destX = overlapLeft - tileLeft;
-                            const destY = overlapTop - tileTop;
+                            // Calculate source coordinates (position in original image)
+                            const sx = overlapLeft - imgX;
+                            const sy = overlapTop - imgY;
                             
-                            // Apply blend mode and opacity
-                            ctx.globalCompositeOperation = blendMode === 'normal' ? 'source-over' : blendMode;
-                            ctx.globalAlpha = opacity;
+                            // Calculate destination coordinates (position in tile)
+                            const dx = overlapLeft - tileLeft;
+                            const dy = overlapTop - tileTop;
                             
-                            // Draw the portion of the image that overlaps with this tile
-                            ctx.drawImage(
-                                img,
-                                srcX, srcY, srcWidth, srcHeight,
-                                destX, destY, srcWidth, srcHeight
-                            );
+                            // Set blending modes based on image index
+                            if (imageIndex === 0) {
+                                ctx.globalAlpha = 1.0;
+                            } else if (highQuality) {
+                                // Adaptive blending for high quality
+                                ctx.globalAlpha = Math.min(1.0, 1.0 / (imageIndex + 1) + 0.20);
+                            } else {
+                                // Simple opacity for standard quality
+                                ctx.globalAlpha = 1.0 / (imageIndex + 1);
+                            }
+                            
+                            // Draw the portion of the image that intersects with this tile
+                            ctx.drawImage(img, sx, sy, overlapWidth, overlapHeight, dx, dy, overlapWidth, overlapHeight);
                         }
                         
+                        // Process next image for this tile
                         imageIndex++;
                         setTimeout(processImageForTile, 0);
                     } else {
@@ -876,12 +1342,16 @@
                             data: canvas.toDataURL('image/png')
                         });
                         
-                        tilesProcessed++;
+                        // Free memory to prevent leaks
+                        canvas.width = 1;
+                        canvas.height = 1;
                         
                         // Update progress
+                        tilesProcessed++;
                         const progress = Math.round((tilesProcessed / totalTiles) * 100);
                         progressBar.style.width = `${progress}%`;
-                        progressText.textContent = `${progress}% (Tile ${tilesProcessed}/${totalTiles})`;
+                        progressText.textContent = `Processing tile ${tilesProcessed} of ${totalTiles}`;
+                        progressPercentage.textContent = `${progress}%`;
                         
                         // Process next tile or finish
                         if (tilesProcessed === totalTiles) {
@@ -891,7 +1361,9 @@
                             // Process next tile
                             const nextTileX = (tileX + 1) % totalTilesX;
                             const nextTileY = nextTileX === 0 ? tileY + 1 : tileY;
-                            setTimeout(() => processTile(nextTileX, nextTileY), 0);
+                            
+                            // Add small delay to allow UI updates and GC
+                            setTimeout(() => processTile(nextTileX, nextTileY), 50);
                         }
                     }
                 }
@@ -900,14 +1372,16 @@
                 processImageForTile();
             }
             
-            // Start processing the first tile
+            // Start with the first tile
             processTile(0, 0);
         }
         
-        // Create preview from tiles
+        // Create preview from processed tiles
         function createPreviewFromTiles() {
+            debug("Creating preview from tiles");
+            
             // Create a downscaled preview for display
-            const MAX_PREVIEW_SIZE = 800;
+            const MAX_PREVIEW_SIZE = 1000;
             
             const aspectRatio = fullResolutionData.width / fullResolutionData.height;
             let previewWidth, previewHeight;
@@ -924,46 +1398,119 @@
             previewCanvas.height = previewHeight;
             const previewCtx = previewCanvas.getContext('2d');
             
-            // Create a small temporary canvas for the preview
+            // Draw a checkerboard pattern for transparent areas
+            previewCtx.fillStyle = '#f0f0f0';
+            previewCtx.fillRect(0, 0, previewWidth, previewHeight);
+            
+            // Display a loading message on the preview canvas while loading
+            previewCtx.fillStyle = '#333333';
+            previewCtx.font = '16px sans-serif';
+            previewCtx.textAlign = 'center';
+            previewCtx.fillText('Creating preview...', previewWidth / 2, previewHeight / 2);
+            
+            // Create a temporary canvas for assembling the preview
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = previewWidth;
             tempCanvas.height = previewHeight;
             const tempCtx = tempCanvas.getContext('2d');
             
-            // Draw scaled version of the first few tiles to create preview
+            // Scale factor for the preview
             const scaleFactor = previewWidth / fullResolutionData.width;
             
+            // Load and draw tiles for the preview
             let tilesLoaded = 0;
-            fullResolutionData.tiles.forEach(tile => {
-                const img = new Image();
-                img.onload = function() {
-                    const destX = tile.x * fullResolutionData.tileSize * scaleFactor;
-                    const destY = tile.y * fullResolutionData.tileSize * scaleFactor;
-                    const destWidth = tile.width * scaleFactor;
-                    const destHeight = tile.height * scaleFactor;
+            
+            // Process tiles in batches for the preview
+            const tileBatchSize = 4;
+            let tileIndex = 0;
+            
+            function processNextTileBatch() {
+                if (tileIndex >= fullResolutionData.tiles.length) {
+                    // All tiles processed, finalize preview
+                    previewCtx.clearRect(0, 0, previewWidth, previewHeight);
+                    previewCtx.drawImage(tempCanvas, 0, 0);
                     
-                    tempCtx.drawImage(img, destX, destY, destWidth, destHeight);
+                    // Clean up temporary canvas
+                    tempCanvas.width = 1;
+                    tempCanvas.height = 1;
                     
-                    tilesLoaded++;
-                    if (tilesLoaded === fullResolutionData.tiles.length) {
-                        // All tiles loaded for preview, update the display canvas
-                        previewCtx.clearRect(0, 0, previewWidth, previewHeight);
-                        previewCtx.drawImage(tempCanvas, 0, 0);
+                    // Show result
+                    progressContainer.style.display = 'none';
+                    resultContainer.style.display = 'block';
+                    isProcessing = false;
+                    stackBtn.disabled = false;
+                    
+                    debug("Preview creation complete");
+                    return;
+                }
+                
+                const endIndex = Math.min(tileIndex + tileBatchSize, fullResolutionData.tiles.length);
+                const currentTiles = fullResolutionData.tiles.slice(tileIndex, endIndex);
+                let batchTilesLoaded = 0;
+                
+                currentTiles.forEach(tile => {
+                    const img = new Image();
+                    
+                    img.onload = function() {
+                        // Calculate scaled position
+                        const destX = tile.x * fullResolutionData.tileSize * scaleFactor;
+                        const destY = tile.y * fullResolutionData.tileSize * scaleFactor;
+                        const destWidth = tile.width * scaleFactor;
+                        const destHeight = tile.height * scaleFactor;
                         
-                        // Show result container
-                        progressContainer.style.display = 'none';
-                        resultContainer.style.display = 'block';
-                    }
-                };
-                img.src = tile.data;
-            });
+                        // Draw to temp canvas
+                        tempCtx.drawImage(img, destX, destY, destWidth, destHeight);
+                        
+                        // Free memory
+                        img.src = '';
+                        
+                        // Update progress
+                        batchTilesLoaded++;
+                        tilesLoaded++;
+                        
+                        progressText.textContent = `Creating preview (${tilesLoaded}/${fullResolutionData.tiles.length} tiles)`;
+                        const progress = Math.round((tilesLoaded / fullResolutionData.tiles.length) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressPercentage.textContent = `${progress}%`;
+                        
+                        // Check if batch complete
+                        if (batchTilesLoaded === currentTiles.length) {
+                            // Process next batch
+                            tileIndex = endIndex;
+                            setTimeout(processNextTileBatch, 50);
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        debug(`Error loading tile ${tile.x},${tile.y} for preview`);
+                        batchTilesLoaded++;
+                        tilesLoaded++;
+                        
+                        // Continue even if there's an error
+                        if (batchTilesLoaded === currentTiles.length) {
+                            tileIndex = endIndex;
+                            setTimeout(processNextTileBatch, 50);
+                        }
+                    };
+                    
+                    img.src = tile.data;
+                });
+            }
+            
+            // Start processing tile batches
+            processNextTileBatch();
         }
         
-        // Standard finish function for smaller images
+        // Finish standard (non-tiled) stacking process
         function finishStacking(canvas) {
+            debug("Finishing standard image stacking process");
+            
+            // Store the stacked canvas for download
+            stackedCanvas = canvas;
+            
             // Create preview
-            const maxPreviewWidth = 800;
-            const maxPreviewHeight = 600;
+            const maxPreviewWidth = 1000;
+            const maxPreviewHeight = 800;
             const aspectRatio = canvas.width / canvas.height;
             
             let previewWidth, previewHeight;
@@ -985,9 +1532,11 @@
             const previewCtx = previewCanvas.getContext('2d');
             previewCtx.drawImage(canvas, 0, 0, previewWidth, previewHeight);
             
-            // Show result container
+            // Show result
             progressContainer.style.display = 'none';
             resultContainer.style.display = 'block';
+            isProcessing = false;
+            stackBtn.disabled = false;
         }
         
         // Handle download button click
@@ -1001,347 +1550,468 @@
             }
         });
         
-        // Download for standard canvas
-        function downloadStandardCanvas() {
-            const quality = 0.9;
+                // Download for standard canvas
+                function downloadStandardCanvas() {
+            if (!stackedCanvas) return;
             
-            stackedCanvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'stacked_image.png';
-                link.click();
-                
-                // Clean up
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
-            }, 'image/png');
+            // Add a spinner to the download button
+            downloadBtn.innerHTML = '<div class="spinner"></div> Processing...';
+            downloadBtn.disabled = true;
+            
+            // Use setTimeout to allow UI to update before heavy processing
+            setTimeout(() => {
+                try {
+                    // Get the canvas data URL
+                    const dataURL = stackedCanvas.toDataURL('image/png');
+                    
+                    // Create a download link
+                    const link = document.createElement('a');
+                    link.download = `stacked_image_${new Date().getTime()}.png`;
+                    link.href = dataURL;
+                    link.click();
+                    
+                    debug('Image downloaded successfully');
+                } catch (err) {
+                    debug(`Error during download: ${err.message}`);
+                    alert('Error creating download. The image might be too large.');
+                } finally {
+                    // Reset button
+                    downloadBtn.innerHTML = 'Download Stacked Image';
+                    downloadBtn.disabled = false;
+                }
+            }, 100);
         }
         
-        // Download for tiled canvas (extremely large)
+        // Download for tiled high-resolution canvas
         function downloadTiledCanvas() {
-            // Show download progress
+            if (!fullResolutionData) return;
+            
+            // Add spinner to download button
+            downloadBtn.innerHTML = '<div class="spinner"></div> Assembling high-res image...';
+            downloadBtn.disabled = true;
+            
             progressContainer.style.display = 'block';
-            progressText.textContent = 'Preparing download...';
+            progressText.textContent = 'Preparing high-resolution download...';
             progressBar.style.width = '0%';
             
-            // For extremely large images, we need to use a chunked approach
-            // or provide separate tiles for the user to combine externally
+            // For extremely large images, we'll create a JPEG file instead of PNG to save memory
+            const outputFormat = (fullResolutionData.width * fullResolutionData.height) > 40000000 ? 'image/jpeg' : 'image/png';
+            const fileExtension = outputFormat === 'image/jpeg' ? 'jpg' : 'png';
+            const quality = selectedQuality === 'high' ? 0.95 : 0.9;
             
-            // Option 1: Generate a combined image if below certain threshold (e.g., 10,000 x 10,000)
-            if (fullResolutionData.width <= 10000 && fullResolutionData.height <= 10000) {
-                combineAndDownloadTiles();
+            debug(`Creating ${outputFormat} file for download (${fullResolutionData.width}x${fullResolutionData.height})`);
+            
+            // Use a worker for large image assembly if supported
+            if (window.Worker) {
+                try {
+                    // Create a new worker
+                    const assemblyWorker = new Worker(URL.createObjectURL(new Blob([`
+                        // Web Worker for assembling tiled images
+                        self.onmessage = function(e) {
+                            const data = e.data;
+                            const tiles = data.tiles;
+                            const width = data.width;
+                            const height = data.height;
+                            const tileSize = data.tileSize;
+                            const outputFormat = data.outputFormat;
+                            const quality = data.quality;
+                            
+                            // Create an offscreen canvas if supported
+                            let canvas;
+                            if (self.OffscreenCanvas) {
+                                canvas = new OffscreenCanvas(width, height);
+                            } else {
+                                canvas = {
+                                    getContext: function() {
+                                        return null;
+                                    }
+                                };
+                                // If OffscreenCanvas is not supported, notify the main thread
+                                self.postMessage({ type: 'error', message: 'OffscreenCanvas not supported' });
+                                return;
+                            }
+                            
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) {
+                                self.postMessage({ type: 'error', message: 'Could not get canvas context' });
+                                return;
+                            }
+                            
+                            // Process tiles
+                            let loadedTiles = 0;
+                            
+                            // Function to load and draw a tile
+                            function processTile(tile) {
+                                // Create an image for the tile
+                                const img = new Image();
+                                img.src = tile.data;
+                                
+                                // Convert tile.data to ImageBitmap for better performance
+                                const blobPromise = fetch(tile.data)
+                                    .then(response => response.blob())
+                                    .then(blob => createImageBitmap(blob))
+                                    .then(bitmap => {
+                                        // Draw the tile at its position
+                                        const x = tile.x * tileSize;
+                                        const y = tile.y * tileSize;
+                                        ctx.drawImage(bitmap, x, y);
+                                        
+                                        // Release the bitmap
+                                        bitmap.close();
+                                        
+                                        // Update progress
+                                        loadedTiles++;
+                                        self.postMessage({ 
+                                            type: 'progress', 
+                                            loaded: loadedTiles, 
+                                            total: tiles.length 
+                                        });
+                                        
+                                        // Check if all tiles are processed
+                                        if (loadedTiles === tiles.length) {
+                                            // All tiles processed, create final image
+                                            if (outputFormat === 'image/jpeg') {
+                                                canvas.convertToBlob({ type: outputFormat, quality: quality })
+                                                    .then(blob => {
+                                                        self.postMessage({ type: 'complete', blob: blob });
+                                                    });
+                                            } else {
+                                                canvas.convertToBlob({ type: outputFormat })
+                                                    .then(blob => {
+                                                        self.postMessage({ type: 'complete', blob: blob });
+                                                    });
+                                            }
+                                        }
+                                    })
+                                    .catch(error => {
+                                        self.postMessage({ 
+                                            type: 'error', 
+                                            message: 'Error processing tile: ' + error.message 
+                                        });
+                                    });
+                            }
+                            
+                            // Process all tiles
+                            for (let i = 0; i < tiles.length; i++) {
+                                processTile(tiles[i]);
+                            }
+                        };
+                    `], { type: 'application/javascript' })));
+                    
+                    // Set up worker message handler
+                    assemblyWorker.onmessage = function(e) {
+                        const data = e.data;
+                        
+                        if (data.type === 'progress') {
+                            // Update progress
+                            const progress = Math.round((data.loaded / data.total) * 100);
+                            progressBar.style.width = `${progress}%`;
+                            progressText.textContent = `Assembling tiles (${data.loaded}/${data.total})`;
+                            progressPercentage.textContent = `${progress}%`;
+                        }
+                        else if (data.type === 'complete') {
+                            // Download completed blob
+                            const url = URL.createObjectURL(data.blob);
+                            const link = document.createElement('a');
+                            link.download = `stacked_high_res_${new Date().getTime()}.${fileExtension}`;
+                            link.href = url;
+                            link.click();
+                            
+                            // Clean up
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            progressContainer.style.display = 'none';
+                            downloadBtn.innerHTML = 'Download Stacked Image';
+                            downloadBtn.disabled = false;
+                            
+                            // Terminate worker
+                            assemblyWorker.terminate();
+                            
+                            debug('High resolution image downloaded successfully');
+                        }
+                        else if (data.type === 'error') {
+                            debug(`Worker error: ${data.message}`);
+                            alert(`Error creating high-resolution image: ${data.message}`);
+                            progressContainer.style.display = 'none';
+                            downloadBtn.innerHTML = 'Download Stacked Image';
+                            downloadBtn.disabled = false;
+                            
+                            // Terminate worker
+                            assemblyWorker.terminate();
+                            
+                            // Fall back to regular assembly
+                            assembleHighResImageFallback();
+                        }
+                    };
+                    
+                    // Set up error handler
+                    assemblyWorker.onerror = function(error) {
+                        debug(`Worker error: ${error.message}`);
+                        alert('Error during image assembly. Trying fallback method...');
+                        
+                        // Terminate worker
+                        assemblyWorker.terminate();
+                        
+                        // Fall back to regular assembly
+                        assembleHighResImageFallback();
+                    };
+                    
+                    // Start the worker with tile data
+                    assemblyWorker.postMessage({
+                        tiles: fullResolutionData.tiles,
+                        width: fullResolutionData.width,
+                        height: fullResolutionData.height,
+                        tileSize: fullResolutionData.tileSize,
+                        outputFormat: outputFormat,
+                        quality: quality
+                    });
+                    
+                } catch (error) {
+                    debug(`Error creating worker: ${error.message}`);
+                    // Fall back to regular assembly
+                    assembleHighResImageFallback();
+                }
             } else {
-                // Option 2: Provide a zip of tiles for extremely large images
-                provideTilesForDownload();
+                // Web workers not supported, use fallback
+                assembleHighResImageFallback();
             }
         }
         
-        // Combine tiles into a single image for download
-        function combineAndDownloadTiles() {
-            // Create an offscreen canvas for the full image
+        // Fallback method for high-res image assembly when workers aren't available
+        function assembleHighResImageFallback() {
+            debug('Using fallback method for high-res image assembly');
+            
+            // Show warning for very large images
+            if (fullResolutionData.width * fullResolutionData.height > 50000000) {
+                if (!confirm('The output image is very large and might cause the browser to crash. Continue anyway?')) {
+                    downloadBtn.innerHTML = 'Download Stacked Image';
+                    downloadBtn.disabled = false;
+                    progressContainer.style.display = 'none';
+                    return;
+                }
+            }
+            
+            // Create assembly canvas
             const canvas = document.createElement('canvas');
             canvas.width = fullResolutionData.width;
             canvas.height = fullResolutionData.height;
             const ctx = canvas.getContext('2d');
             
-            // Total tiles to process
-            const totalTiles = fullResolutionData.tiles.length;
-            let tilesProcessed = 0;
+            // Process tiles in small batches
+            const batchSize = 4;
+            let tileIndex = 0;
             
-            // Process tiles sequentially to avoid memory issues
-            function processNextTile(index) {
-                if (index >= totalTiles) {
-                    // All tiles processed, download the result
-                    finalizeDownload(canvas);
+            function processNextBatch() {
+                if (tileIndex >= fullResolutionData.tiles.length) {
+                    // All tiles processed, create download
+                    finalizeFallbackDownload(canvas);
                     return;
                 }
                 
-                const tile = fullResolutionData.tiles[index];
-                const img = new Image();
+                const endIndex = Math.min(tileIndex + batchSize, fullResolutionData.tiles.length);
+                const currentBatch = fullResolutionData.tiles.slice(tileIndex, endIndex);
+                let batchTilesLoaded = 0;
                 
-                img.onload = function() {
-                    const destX = tile.x * fullResolutionData.tileSize;
-                    const destY = tile.y * fullResolutionData.tileSize;
-                    
-                    ctx.drawImage(img, destX, destY);
-                    
-                    // Update progress
-                    tilesProcessed++;
-                    const progress = Math.round((tilesProcessed / totalTiles) * 100);
-                    progressBar.style.width = `${progress}%`;
-                    progressText.textContent = `Preparing download: ${progress}%`;
-                    
-                    // Free memory by removing the reference to the image
-                    img.src = '';
-                    
-                    // Process next tile
-                    setTimeout(() => processNextTile(index + 1), 0);
-                };
+                // Update progress
+                progressText.textContent = `Assembling tiles (${tileIndex}/${fullResolutionData.tiles.length})`;
+                progressBar.style.width = `${Math.round((tileIndex / fullResolutionData.tiles.length) * 100)}%`;
                 
-                img.onerror = function() {
-                    debug(`Error loading tile ${index} for download`);
-                    // Continue with next tile even if there's an error
-                    tilesProcessed++;
-                    setTimeout(() => processNextTile(index + 1), 0);
-                };
-                
-                img.src = tile.data;
+                // Process each tile in batch
+                currentBatch.forEach(tile => {
+                    const img = new Image();
+                    
+                    img.onload = function() {
+                        // Draw the tile at its position
+                        const x = tile.x * fullResolutionData.tileSize;
+                        const y = tile.y * fullResolutionData.tileSize;
+                        ctx.drawImage(img, x, y);
+                        
+                        // Clean up
+                        img.src = '';
+                        
+                        // Update batch counter
+                        batchTilesLoaded++;
+                        
+                        // If batch complete, process next batch
+                        if (batchTilesLoaded === currentBatch.length) {
+                            tileIndex = endIndex;
+                            // Slight delay to allow UI updates
+                            setTimeout(processNextBatch, 50);
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        debug(`Error loading tile ${tile.x}, ${tile.y}`);
+                        batchTilesLoaded++;
+                        
+                        if (batchTilesLoaded === currentBatch.length) {
+                            tileIndex = endIndex;
+                            setTimeout(processNextBatch, 50);
+                        }
+                    };
+                    
+                    img.src = tile.data;
+                });
             }
             
-            // Start processing tiles
-            processNextTile(0);
+            // Start batch processing
+            processNextBatch();
         }
         
-        // Finalize the download process
-        function finalizeDownload(canvas) {
+        // Finalize the fallback download
+        function finalizeFallbackDownload(canvas) {
             try {
                 progressText.textContent = 'Creating download file...';
+                progressBar.style.width = '90%';
                 
-                // Use a lower quality setting for very large images to reduce file size
-                const quality = fullResolutionData.width * fullResolutionData.height > 50000000 ? 0.7 : 0.9;
-                
-                canvas.toBlob(function(blob) {
-                    const url = URL.createObjectURL(blob);
+                // Use setTimeout to allow UI to update
+                setTimeout(() => {
+                    // For large images, JPEG might be more reliable
+                    const outputFormat = (canvas.width * canvas.height) > 40000000 ? 'image/jpeg' : 'image/png';
+                    const fileExtension = outputFormat === 'image/jpeg' ? 'jpg' : 'png';
+                    const quality = selectedQuality === 'high' ? 0.95 : 0.9;
                     
-                    progressText.textContent = 'Download ready!';
-                    progressBar.style.width = '100%';
+                    let dataURL;
+                    if (outputFormat === 'image/jpeg') {
+                        dataURL = canvas.toDataURL(outputFormat, quality);
+                    } else {
+                        dataURL = canvas.toDataURL(outputFormat);
+                    }
                     
+                    // Create download link
                     const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'stacked_image_' + fullResolutionData.width + 'x' + fullResolutionData.height + '.png';
+                    link.download = `stacked_high_res_${new Date().getTime()}.${fileExtension}`;
+                    link.href = dataURL;
                     link.click();
                     
                     // Clean up
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                        progressContainer.style.display = 'none';
-                    }, 5000);
-                }, 'image/png', quality);
-            } catch (e) {
-                alert('Error creating the high-resolution image. The file may be too large for your browser to handle. Try with smaller dimensions or fewer images.');
-                console.error('Download error:', e);
+                    canvas.width = 1;
+                    canvas.height = 1;
+                    
+                    progressContainer.style.display = 'none';
+                    downloadBtn.innerHTML = 'Download Stacked Image';
+                    downloadBtn.disabled = false;
+                    
+                    debug('High resolution image downloaded successfully (fallback method)');
+                }, 100);
+                
+            } catch (error) {
+                debug(`Error in fallback download: ${error.message}`);
+                alert(`Failed to create download: ${error.message}`);
+                
                 progressContainer.style.display = 'none';
+                downloadBtn.innerHTML = 'Download Stacked Image';
+                downloadBtn.disabled = false;
             }
         }
         
-        // Provide tiles as separate downloads for extremely large images
-        function provideTilesForDownload() {
-            // Create ZIP file with multiple tiles
-            // Note: This would require a ZIP library like JSZip
-            alert('This image is extremely large (' + fullResolutionData.width + 'x' + fullResolutionData.height + ' pixels). ' +
-                  'Your browser may not be able to process it as a single file. ' +
-                  'The image will be downloaded in tiles that you can combine with external software.');
+        // Initialize the application
+        function init() {
+            debug('Initializing Advanced Image Stacker');
             
-            // For simplicity, we'll just download the first few tiles as examples
-            const maxTilesToDownload = 4;
-            const tilesToDownload = Math.min(maxTilesToDownload, fullResolutionData.tiles.length);
+            // Check for dark mode preference
+            const savedTheme = localStorage.getItem('theme');
             
-            for (let i = 0; i < tilesToDownload; i++) {
-                const tile = fullResolutionData.tiles[i];
-                const link = document.createElement('a');
-                link.href = tile.data;
-                link.download = `stacked_image_tile_${tile.x}_${tile.y}.png`;
-                
-                // Slight delay between downloads
-                setTimeout(() => link.click(), i * 500);
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                if (savedTheme === 'light') {
+                    darkIcon.style.display = 'none';
+                    lightIcon.style.display = 'block';
+                }
+            } else {
+                // Check for system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    darkIcon.style.display = 'none';
+                    lightIcon.style.display = 'block';
+                }
             }
             
+            // Listen for system theme changes
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    if (!localStorage.getItem('theme')) {
+                        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+                        
+                        if (e.matches) {
+                            darkIcon.style.display = 'block';
+                            lightIcon.style.display = 'none';
+                        } else {
+                            darkIcon.style.display = 'none';
+                            lightIcon.style.display = 'block';
+                        }
+                    }
+                });
+            }
+            
+            // Hide result initially
+            resultContainer.style.display = 'none';
             progressContainer.style.display = 'none';
             
-            if (fullResolutionData.tiles.length > maxTilesToDownload) {
-                alert(`Downloading ${maxTilesToDownload} sample tiles out of ${fullResolutionData.tiles.length} total tiles. For full download, please use a smaller image size.`);
-            }
-        }
-        
-        // Utility function to format file size
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' bytes';
-            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-            return (bytes / 1073741824).toFixed(1) + ' GB';
-        }
-        
-                // Initialize the app
-                function init() {
-            // Set up event handlers for controls
-            opacitySlider.addEventListener('input', function() {
-                opacityValue.textContent = `${this.value}%`;
-            });
-            
-            // Default state for resolution inputs
-            outputWidth.disabled = maintainOriginalSize.checked;
-            outputHeight.disabled = maintainOriginalSize.checked;
-            
-            // Make file input visible for direct access and to ensure it works on all browsers
-            fileInput.style.display = 'block';
-            fileInput.style.width = '100%';
-            fileInput.style.margin = '10px 0';
-            fileInput.style.padding = '10px';
-            
-            // Set accepted file types to include HEIC explicitly
-            fileInput.setAttribute('accept', 'image/*,.heic,.HEIC');
-            
-            // Check for the heic2any library
+            // Check for HEIC support
             if (typeof heic2any === 'undefined') {
-                debug('WARNING: heic2any library not detected. HEIC conversion may not work.');
+                debug('Warning: HEIC conversion library not loaded');
                 
-                // Add a script tag to load the library if missing
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js';
-                script.onload = function() {
-                    debug('heic2any library loaded successfully.');
-                };
-                script.onerror = function() {
-                    debug('Failed to load heic2any library. HEIC files will not be supported.');
-                };
-                document.head.appendChild(script);
+                // Add a warning to the drop area
+                const warning = document.createElement('p');
+                warning.className = 'warning';
+                warning.innerHTML = '⚠️ HEIC support not available. iPhone photos may not work.';
+                dropArea.appendChild(warning);
             }
             
-            // Any other initialization
-            debug('Image Stacker initialized. HEIC support enabled. Supported resolution: up to 1500 megapixels');
-        }
-        
-        // Detect HEIC support in the browser
-        async function checkHeicSupport() {
-            if (typeof heic2any === 'undefined') {
-                return false;
-            }
-            
-            try {
-                // Create a simple 1x1 HEIC test image (dummy test)
-                const response = await fetch('data:image/heic;base64,AAAA');
-                if (!response.ok) return false;
-                
-                const blob = await response.blob();
-                await heic2any({ blob });
-                return true;
-            } catch (e) {
-                console.error('HEIC support check failed:', e);
-                return false;
-            }
-        }
-        
-        // Clear all images button
-        function addClearAllButton() {
-            const clearAllBtn = document.createElement('button');
-            clearAllBtn.textContent = 'Clear All Images';
-            clearAllBtn.style.backgroundColor = '#f44336';
-            clearAllBtn.style.marginTop = '10px';
-            
-            clearAllBtn.addEventListener('click', function() {
-                if (uploadedImages.length === 0) return;
-                
-                if (confirm('Are you sure you want to remove all images?')) {
-                    uploadedImages = [];
-                    while (previewContainer.firstChild) {
-                        previewContainer.removeChild(previewContainer.firstChild);
+            // Add event listener for visibility change to manage memory
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden' && !isProcessing) {
+                    // Page is hidden and not processing, free memory
+                    
+                    // Clear canvas contexts to release memory
+                    if (previewCanvas) {
+                        const ctx = previewCanvas.getContext('2d');
+                        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
                     }
-                    updateStackButton();
-                    debug('All images cleared');
+                    
+                    // Suggest garbage collection
+                    if (window.gc) window.gc();
                 }
             });
             
-            // Add the button after the preview container
-            previewContainer.parentNode.insertBefore(clearAllBtn, previewContainer.nextSibling);
+            // Check browser capabilities and show warnings if needed
+            checkBrowserCapabilities();
         }
         
-        // Add a function to validate HEIC files before processing
-        function isHeicFile(file) {
-            return file.name.toLowerCase().endsWith('.heic') || 
-                   file.type === 'image/heic' || 
-                   file.type === 'image/heif';
-        }
-        
-        // Better error handling for the whole application
-        window.addEventListener('error', function(e) {
-            debug(`Error: ${e.message} at ${e.filename}:${e.lineno}`);
-            
-            // For HEIC specific errors
-            if (e.message.includes('HEIC') || e.message.includes('heic')) {
-                alert('There was an error processing HEIC images. Please try converting them to JPEG or PNG first.');
-            }
-        });
-        
-        // Better reporting for rejected promises
-        window.addEventListener('unhandledrejection', function(e) {
-            debug(`Promise rejection: ${e.reason}`);
-            
-            // For HEIC specific errors
-            if (e.reason && (e.reason.toString().includes('HEIC') || e.reason.toString().includes('heic'))) {
-                alert('There was an error processing HEIC images. Please try converting them to JPEG or PNG first.');
-            }
-        });
-        
-        // Function to check if a file is a valid image before processing
-        async function isValidImageFile(file) {
-            // First check the file extension and type
-            const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif'];
-            const fileName = file.name.toLowerCase();
-            
-            // Check if it has a valid extension
-            if (!validExtensions.some(ext => fileName.endsWith(ext))) {
-                debug(`Invalid file extension: ${fileName}`);
-                return false;
-            }
-            
-            // HEIC files need special handling
-            if (isHeicFile(file)) {
-                // Already checked before
-                return true;
-            }
-            
-            // For other image types, try to create an object URL and load it
-            return new Promise((resolve) => {
-                const objectUrl = URL.createObjectURL(file);
-                const img = new Image();
+        // Check browser capabilities
+        function checkBrowserCapabilities() {
+            // Check for WebP support for better performance
+            const webpSupport = document.createElement('canvas')
+                .toDataURL('image/webp').indexOf('data:image/webp') === 0;
                 
-                img.onload = function() {
-                    URL.revokeObjectURL(objectUrl);
-                    resolve(true);
-                };
-                
-                img.onerror = function() {
-                    URL.revokeObjectURL(objectUrl);
-                    debug(`Failed to load image: ${file.name}`);
-                    resolve(false);
-                };
-                
-                img.src = objectUrl;
-            });
-        }
-        
-        // Add support info to the UI
-        function updateSupportInfo() {
-            const supportInfoDiv = document.createElement('div');
-            supportInfoDiv.className = 'info-box';
-            supportInfoDiv.innerHTML = `
-                <p><strong>Supported file types:</strong></p>
-                <ul>
-                    <li>JPEG, PNG, GIF, WebP, BMP - Standard support</li>
-                    <li>HEIC/HEIF - Supported with conversion (iOS/Apple Photos)</li>
-                </ul>
-                <p><small>Note: HEIC files will be automatically converted to JPEG for processing</small></p>
-            `;
+            if (!webpSupport) {
+                debug('WebP format not supported in this browser');
+            }
             
-            // Insert after the drop area
-            dropArea.parentNode.insertBefore(supportInfoDiv, dropArea.nextSibling);
-        }
-        
-        // Run initialization when page loads
-        window.addEventListener('DOMContentLoaded', function() {
-            init();
-            addClearAllButton();
-            updateSupportInfo();
-            
-            // Check HEIC support
-            checkHeicSupport().then(supported => {
-                if (supported) {
-                    debug('HEIC support confirmed');
-                } else {
-                    debug('HEIC support not available. Will try to use the conversion library.');
+            // Check memory limits
+            if (window.performance && window.performance.memory) {
+                const memory = window.performance.memory;
+                debug(`Browser memory: ${formatFileSize(memory.jsHeapSizeLimit)}`);
+                
+                if (memory.jsHeapSizeLimit < 2147483648) { // 2GB
+                    debug('Warning: Browser has limited memory. Large images may fail.');
                 }
-            });
-        });
+            }
+            
+            // Check for necessary API support
+            if (!window.Blob || !window.URL || !window.File || !window.FileReader) {
+                debug('Warning: Browser missing required APIs for full functionality');
+                alert('Your browser may not support all features of this application. Please use a modern browser for best results.');
+            }
+        }
+        
+        // Start the application
+        init();
     </script>
+    
+    <!-- HEIC conversion library -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 </body>
 </html>
